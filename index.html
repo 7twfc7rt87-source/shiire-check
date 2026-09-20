@@ -6,11 +6,11 @@
   <meta name="theme-color" content="#111827">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <title>仕入チェック Ver.0.2</title>
+  <title>仕入チェック Ver.1</title>
   <style>
     :root{
       --bg:#f3f4f6;--card:#fff;--text:#111827;--muted:#6b7280;--line:#e5e7eb;
-      --good:#047857;--warn:#b45309;--bad:#b91c1c;--primary:#111827;
+      --good:#047857;--warn:#b45309;--bad:#b91c1c;--primary:#111827;--blue:#1d4ed8;
     }
     *{box-sizing:border-box}
     body{
@@ -32,6 +32,7 @@
       font-size:15px;font-weight:700;text-decoration:none;text-align:center;cursor:pointer;
     }
     .primary{background:var(--primary);color:#fff}
+    .lookup{background:var(--blue);color:#fff}
     .secondary{background:#e5e7eb;color:#111827}
     .search{background:#fff;color:#111827;border:1px solid var(--line)!important}
     .result{text-align:center;background:#f9fafb;border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:12px}
@@ -42,20 +43,51 @@
     .metric .v{font-size:21px;font-weight:800}
     .wide{grid-column:1/-1}
     .pill{font-size:11px;padding:3px 8px;border-radius:999px;background:#e5e7eb;color:#374151}
-    @media(max-width:440px){.grid,.buttons,.metrics{grid-template-columns:1fr}.wide{grid-column:auto}}
+    .product{display:none;gap:14px;align-items:flex-start;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+    .product.show{display:flex}
+    .product img{width:105px;height:105px;object-fit:contain;border:1px solid var(--line);border-radius:12px;background:#fff;flex:0 0 auto}
+    .product-info{min-width:0}
+    .product-name{font-size:15px;font-weight:800;line-height:1.45;margin-bottom:6px}
+    .product-meta{font-size:12px;color:var(--muted);line-height:1.65}
+    .status{font-size:13px;margin-top:10px;min-height:20px}
+    .status.loading{color:var(--blue)} .status.error{color:var(--bad)} .status.ok{color:var(--good)}
+    @media(max-width:440px){
+      .grid,.buttons,.metrics{grid-template-columns:1fr}
+      .wide{grid-column:auto}
+      .product img{width:90px;height:90px}
+    }
   </style>
 </head>
 <body>
 <main>
-  <h1>仕入チェック <span class="pill">Ver.0.2</span></h1>
-  <div class="sub">Safari用・1ファイル版</div>
+  <h1>仕入チェック <span class="pill">Ver.1</span></h1>
+  <div class="sub">JANから商品情報を自動取得</div>
 
   <section class="card">
     <label>JANコード</label>
-    <input id="jan" inputmode="numeric" autocomplete="off" placeholder="例：4901234567890">
+    <input id="jan" inputmode="numeric" autocomplete="off" placeholder="例：4901001212767" maxlength="13">
 
-    <label>商品名・型番（任意）</label>
-    <input id="name" autocomplete="off" placeholder="例：Panasonic EH-NA0J">
+    <div class="buttons">
+      <button id="lookupBtn" class="lookup" type="button">JANから商品を取得</button>
+      <button id="clearProductBtn" class="secondary" type="button">商品情報をクリア</button>
+    </div>
+
+    <div id="lookupStatus" class="status"></div>
+
+    <div id="productBox" class="product">
+      <img id="productImage" alt="商品画像">
+      <div class="product-info">
+        <div id="productNameDisplay" class="product-name"></div>
+        <div class="product-meta">
+          <div id="productBrandDisplay"></div>
+          <div id="productYahooPrice"></div>
+          <div id="productHitCount"></div>
+        </div>
+      </div>
+    </div>
+
+    <label>検索に使う商品名・型番</label>
+    <input id="name" autocomplete="off" placeholder="JAN取得後に自動入力／手入力も可">
 
     <div class="buttons">
       <a id="mercari" class="button search" href="#">メルカリで検索</a>
@@ -65,7 +97,9 @@
       <a id="yahooCurrent" class="button search" href="#">ヤフオク開催中</a>
       <button id="copyBtn" class="search" type="button">検索語をコピー</button>
     </div>
-    <div class="note">商品名・型番が入っていればそちらを優先。空欄ならJANで検索します。</div>
+    <div class="note">
+      商品取得後は商品名を検索語へ自動セットします。検索結果が広すぎる場合は、型番だけ残すなど手動修正できます。
+    </div>
   </section>
 
   <section class="card">
@@ -118,6 +152,7 @@
 
 <script>
 (() => {
+  const WORKER_URL = "https://shiire-check-api.7twfc7rt87.workers.dev/";
   const $ = id => document.getElementById(id);
   const savedIds = ["jan","name","shipping","fee","target"];
 
@@ -147,6 +182,110 @@
       localStorage.setItem("shiire_" + id, $(id).value);
       if (id === "jan" || id === "name") updateLinks();
     });
+  });
+
+  const setLookupStatus = (msg, type="") => {
+    $("lookupStatus").textContent = msg;
+    $("lookupStatus").className = "status" + (type ? " " + type : "");
+  };
+
+  const clearProduct = () => {
+    $("productBox").classList.remove("show");
+    $("productImage").removeAttribute("src");
+    $("productNameDisplay").textContent = "";
+    $("productBrandDisplay").textContent = "";
+    $("productYahooPrice").textContent = "";
+    $("productHitCount").textContent = "";
+    setLookupStatus("");
+  };
+
+  const lookupProduct = async () => {
+    const jan = $("jan").value.trim();
+
+    if (!/^\d{8}$|^\d{13}$/.test(jan)) {
+      setLookupStatus("JANコードは8桁または13桁の数字で入力してください", "error");
+      return;
+    }
+
+    $("lookupBtn").disabled = true;
+    $("lookupBtn").textContent = "取得中…";
+    setLookupStatus("Yahoo!の商品情報を検索しています…", "loading");
+
+    try {
+      const res = await fetch(WORKER_URL + "?jan=" + encodeURIComponent(jan), {
+        method: "GET",
+        cache: "no-store"
+      });
+
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error("APIから正しいデータが返りませんでした");
+      }
+
+      if (!res.ok) {
+        throw new Error(data.error || "商品検索に失敗しました");
+      }
+
+      if (!data.found) {
+        clearProduct();
+        setLookupStatus("このJANの商品が見つかりませんでした。商品名を手入力してください。", "error");
+        return;
+      }
+
+      const productName = (data.name || "").trim();
+      const brand = (data.brand || "").trim();
+
+      $("productNameDisplay").textContent = productName || "商品名なし";
+      $("productBrandDisplay").textContent = brand ? "ブランド：" + brand : "";
+      $("productYahooPrice").textContent =
+        data.yahooPrice !== null && data.yahooPrice !== undefined
+          ? "Yahoo!参考価格：" + Number(data.yahooPrice).toLocaleString("ja-JP") + "円"
+          : "";
+      $("productHitCount").textContent =
+        data.hitCount !== null && data.hitCount !== undefined
+          ? "JAN一致候補：" + data.hitCount + "件"
+          : "";
+
+      if (data.image) {
+        $("productImage").src = data.image;
+        $("productImage").style.display = "block";
+      } else {
+        $("productImage").style.display = "none";
+      }
+
+      $("productBox").classList.add("show");
+
+      if (productName) {
+        $("name").value = productName;
+        localStorage.setItem("shiire_name", productName);
+      }
+
+      updateLinks();
+      setLookupStatus("商品情報を取得しました。下の検索ボタンで相場を確認できます。", "ok");
+    } catch (err) {
+      clearProduct();
+      setLookupStatus("取得エラー：" + (err.message || "通信に失敗しました"), "error");
+    } finally {
+      $("lookupBtn").disabled = false;
+      $("lookupBtn").textContent = "JANから商品を取得";
+    }
+  };
+
+  $("lookupBtn").addEventListener("click", lookupProduct);
+  $("clearProductBtn").addEventListener("click", () => {
+    clearProduct();
+    $("name").value = "";
+    localStorage.removeItem("shiire_name");
+    updateLinks();
+  });
+
+  $("jan").addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      lookupProduct();
+    }
   });
 
   const num = id => {
@@ -195,7 +334,11 @@
   };
 
   $("calcBtn").addEventListener("click", calculate);
-  $("resetBtn").addEventListener("click", () => { $("buy").value = ""; $("sell").value = ""; empty(); });
+  $("resetBtn").addEventListener("click", () => {
+    $("buy").value = "";
+    $("sell").value = "";
+    empty();
+  });
   ["buy","sell","shipping","fee","target"].forEach(id => $(id).addEventListener("input", calculate));
 
   $("copyBtn").addEventListener("click", async () => {
