@@ -5,8 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#111827">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <title>仕入チェック Ver.2.1</title>
+  <title>仕入チェック Ver.3</title>
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <style>
     :root {
@@ -14,96 +13,64 @@
       --good:#047857;--warn:#b45309;--bad:#b91c1c;--primary:#111827;--blue:#1d4ed8;
     }
     *{box-sizing:border-box}
-    body{
-      margin:0;background:var(--bg);color:var(--text);
-      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Sans","Yu Gothic UI","Yu Gothic",Meiryo,sans-serif;
-    }
+    body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Sans","Yu Gothic UI","Yu Gothic",Meiryo,sans-serif}
     main{max-width:680px;margin:auto;padding:18px 14px 40px}
-    h1{font-size:25px;margin:4px 0 3px}
-    h2{font-size:17px;margin:0 0 10px}
+    h1{font-size:25px;margin:4px 0 3px} h2{font-size:17px;margin:0 0 10px}
     .sub,.note{color:var(--muted);font-size:12px;line-height:1.6}
     .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin:12px 0}
     label{display:block;font-size:13px;font-weight:700;margin:12px 0 6px}
-    input{
-      width:100%;font-size:18px;padding:13px;border-radius:12px;border:1px solid #d1d5db;background:#fff;
-    }
+    input{width:100%;font-size:18px;padding:13px;border-radius:12px;border:1px solid #d1d5db;background:#fff}
     .grid,.buttons,.metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px}
     .buttons{margin-top:12px}
-    button,a.button{
-      display:block;width:100%;padding:13px 10px;border-radius:12px;border:0;
-      font-size:15px;font-weight:700;text-decoration:none;text-align:center;cursor:pointer;
-    }
+    button,a.button{display:block;width:100%;padding:13px 10px;border-radius:12px;border:0;font-size:15px;font-weight:700;text-decoration:none;text-align:center;cursor:pointer}
     button:disabled{opacity:.45;cursor:default}
-    .primary{background:var(--primary);color:#fff}
-    .lookup{background:var(--blue);color:#fff}
-    .scannerBtn{background:#111827;color:#fff}
-    .secondary{background:#e5e7eb;color:#111827}
+    .primary{background:var(--primary);color:#fff} .lookup{background:var(--blue);color:#fff}
+    .scannerBtn{background:#111827;color:#fff} .secondary{background:#e5e7eb;color:#111827}
     .search{background:#fff;color:#111827;border:1px solid var(--line)!important}
     .danger{background:#fee2e2;color:#991b1b}
-    .result{text-align:center;background:#f9fafb;border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:12px}
-    .judge{font-size:27px;font-weight:800}
-    .good{color:var(--good)} .warn{color:var(--warn)} .bad{color:var(--bad)}
-    .metric{border:1px solid var(--line);border-radius:14px;padding:12px;background:#fff}
-    .metric .k{font-size:12px;color:var(--muted);margin-bottom:5px}
-    .metric .v{font-size:21px;font-weight:800}
-    .wide{grid-column:1/-1}
-    .pill{font-size:11px;padding:3px 8px;border-radius:999px;background:#e5e7eb;color:#374151}
-    .product{display:none;gap:14px;align-items:flex-start;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
-    .product.show{display:flex}
-    .product img{width:105px;height:105px;object-fit:contain;border:1px solid var(--line);border-radius:12px;background:#fff;flex:0 0 auto}
-    .product-info{min-width:0}
-    .product-name{font-size:15px;font-weight:800;line-height:1.45;margin-bottom:6px}
-    .product-meta{font-size:12px;color:var(--muted);line-height:1.65}
     .status{font-size:13px;margin-top:10px;min-height:20px}
     .status.loading{color:var(--blue)} .status.error{color:var(--bad)} .status.ok{color:var(--good)}
-    .scanner-wrap{display:none;margin-top:12px}
-    .scanner-wrap.show{display:block}
-    #reader{width:100%;overflow:hidden;border-radius:14px;background:#111}
-    #reader video{border-radius:14px}
+    .product{display:none;gap:14px;align-items:flex-start;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+    .product.show{display:flex} .product img{width:105px;height:105px;object-fit:contain;border:1px solid var(--line);border-radius:12px;background:#fff;flex:0 0 auto}
+    .product-name{font-size:15px;font-weight:800;line-height:1.45;margin-bottom:6px} .product-meta{font-size:12px;color:var(--muted);line-height:1.65}
+    .scanner-wrap{display:none;margin-top:12px} .scanner-wrap.show{display:block}
+    #reader{width:100%;overflow:hidden;border-radius:14px;background:#111} #reader video{border-radius:14px}
     .scan-guide{font-size:12px;color:var(--muted);line-height:1.5;margin:8px 2px}
     .scanner-controls{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
-    .file-label{
-      display:block;width:100%;padding:13px 10px;border-radius:12px;
-      border:1px solid var(--line);background:#fff;font-size:15px;font-weight:700;
-      text-align:center;margin:0;cursor:pointer;
-    }
+    .file-label{display:block;width:100%;padding:13px 10px;border-radius:12px;border:1px solid var(--line);background:#fff;font-size:15px;font-weight:700;text-align:center;margin:0;cursor:pointer}
     #barcodeFile{display:none}
     .term-switch{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0 4px}
-    .term-switch button{
-      padding:10px 7px;background:#f9fafb;color:#374151;border:1px solid var(--line);
-      font-size:12px;
-    }
+    .term-switch button{padding:10px 7px;background:#f9fafb;color:#374151;border:1px solid var(--line);font-size:12px}
     .term-switch button.active{background:#111827;color:#fff;border-color:#111827}
     .term-hint{font-size:11px;color:var(--muted);min-height:17px;margin-top:5px}
-    .history-list{display:grid;gap:8px}
-    .history-item{
-      display:grid;grid-template-columns:54px 1fr auto;gap:10px;align-items:center;
-      border:1px solid var(--line);border-radius:13px;padding:8px;background:#fff;
-    }
-    .history-item img{
-      width:54px;height:54px;object-fit:contain;border-radius:9px;border:1px solid var(--line);background:#fff;
-    }
+    .market-card{border:1px solid var(--line);border-radius:16px;padding:14px;background:#f9fafb;margin-top:14px}
+    .market-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+    .market-title{font-size:14px;font-weight:800}
+    .market-query{font-size:11px;color:var(--muted);margin-top:2px;word-break:break-all}
+    .market-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+    .market-stat{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px;text-align:center}
+    .market-stat .k{font-size:10px;color:var(--muted);margin-bottom:4px} .market-stat .v{font-size:16px;font-weight:800}
+    .market-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+    .smallbtn{padding:10px!important;font-size:12px!important}
+    .market-note{font-size:10px;color:var(--muted);line-height:1.5;margin-top:8px}
+    .result{text-align:center;background:#f9fafb;border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:12px}
+    .judge{font-size:27px;font-weight:800} .good{color:var(--good)} .warn{color:var(--warn)} .bad{color:var(--bad)}
+    .metric{border:1px solid var(--line);border-radius:14px;padding:12px;background:#fff} .metric .k{font-size:12px;color:var(--muted);margin-bottom:5px} .metric .v{font-size:21px;font-weight:800}
+    .wide{grid-column:1/-1} .pill{font-size:11px;padding:3px 8px;border-radius:999px;background:#e5e7eb;color:#374151}
+    .history-list{display:grid;gap:8px} .history-item{display:grid;grid-template-columns:54px 1fr auto;gap:10px;align-items:center;border:1px solid var(--line);border-radius:13px;padding:8px;background:#fff}
+    .history-item img{width:54px;height:54px;object-fit:contain;border-radius:9px;border:1px solid var(--line);background:#fff}
     .history-placeholder{width:54px;height:54px;border-radius:9px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:11px;color:#9ca3af}
-    .history-name{font-size:12px;font-weight:700;line-height:1.35}
-    .history-jan{font-size:10px;color:var(--muted);margin-top:3px}
+    .history-name{font-size:12px;font-weight:700;line-height:1.35} .history-jan{font-size:10px;color:var(--muted);margin-top:3px}
     .history-use{padding:9px 10px!important;font-size:12px!important;background:#e5e7eb;color:#111827}
-    .history-empty{font-size:12px;color:var(--muted);padding:8px 0}
-    .history-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+    .history-empty{font-size:12px;color:var(--muted);padding:8px 0} .history-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
     .history-clear{width:auto!important;padding:7px 10px!important;font-size:11px!important;background:#f3f4f6;color:#6b7280;border:1px solid var(--line)!important}
-    @media(max-width:440px){
-      .grid,.buttons,.metrics,.scanner-controls{grid-template-columns:1fr}
-      .wide{grid-column:auto}
-      .product img{width:90px;height:90px}
-      .term-switch{grid-template-columns:1fr 1fr 1fr}
-      .history-item{grid-template-columns:48px 1fr auto}
-      .history-item img,.history-placeholder{width:48px;height:48px}
-    }
+    @media(max-width:440px){.grid,.buttons,.metrics,.scanner-controls{grid-template-columns:1fr}.wide{grid-column:auto}.product img{width:90px;height:90px}.market-stats{grid-template-columns:1fr 1fr}}
   </style>
 </head>
 <body>
 <main>
-  <h1>仕入チェック <span class="pill">Ver.2.1</span></h1>
-  <div class="sub">検索語最適化＋直近10件の履歴</div>
+  <h1>仕入チェック <span class="pill">Ver.3</span></h1>
+  <div class="sub">Yahoo!オークション落札相場を自動取得</div>
 
   <section class="card">
     <div class="buttons">
@@ -114,7 +81,7 @@
 
     <div id="scannerWrap" class="scanner-wrap">
       <div id="reader"></div>
-      <div class="scan-guide">バーコード全体が枠内に入るように近づけてください。読み取ると自動でカメラを停止して商品検索します。</div>
+      <div class="scan-guide">バーコード全体が枠内に入るように近づけてください。読み取ると自動で商品検索します。</div>
       <div class="scanner-controls">
         <button id="stopScanBtn" class="danger" type="button">カメラを閉じる</button>
         <button id="retryScanBtn" class="secondary" type="button">再読み取り</button>
@@ -135,85 +102,70 @@
 
     <div id="productBox" class="product">
       <img id="productImage" alt="商品画像">
-      <div class="product-info">
+      <div>
         <div id="productNameDisplay" class="product-name"></div>
         <div class="product-meta">
           <div id="productBrandDisplay"></div>
           <div id="productModelDisplay"></div>
           <div id="productYahooPrice"></div>
-          <div id="productHitCount"></div>
         </div>
       </div>
     </div>
 
     <label>検索に使う商品名・型番</label>
-
     <div class="term-switch">
       <button id="termFullBtn" type="button">商品名</button>
       <button id="termBrandModelBtn" type="button">ブランド＋型番</button>
       <button id="termModelBtn" type="button">型番のみ</button>
     </div>
-
     <input id="name" autocomplete="off" placeholder="JAN取得後に自動入力／手入力も可">
     <div id="termHint" class="term-hint"></div>
 
-    <div class="buttons">
-      <a id="mercari" class="button search" href="#">メルカリで検索</a>
-      <a id="yahooClosed" class="button search" href="#">ヤフオク落札相場</a>
-    </div>
-    <div class="buttons">
-      <a id="yahooCurrent" class="button search" href="#">ヤフオク開催中</a>
-      <button id="copyBtn" class="search" type="button">検索語をコピー</button>
+    <div id="marketCard" class="market-card">
+      <div class="market-head">
+        <div>
+          <div class="market-title">Yahoo!オークション 終了180日相場</div>
+          <div id="marketQuery" class="market-query">商品取得後に自動検索します</div>
+        </div>
+      </div>
+      <div id="marketStatus" class="status"></div>
+      <div class="market-stats">
+        <div class="market-stat"><div class="k">最安</div><div id="marketMin" class="v">—</div></div>
+        <div class="market-stat"><div class="k">平均</div><div id="marketAvg" class="v">—</div></div>
+        <div class="market-stat"><div class="k">最高</div><div id="marketMax" class="v">—</div></div>
+        <div class="market-stat"><div class="k">落札件数</div><div id="marketCount" class="v">—</div></div>
+      </div>
+      <div class="market-actions">
+        <button id="refreshMarketBtn" class="secondary smallbtn" type="button">相場を再取得</button>
+        <a id="marketSourceLink" class="button search smallbtn" href="#" target="_blank" rel="noopener">元ページを見る</a>
+      </div>
+      <div class="market-note">※平均は高額品・ジャンク・セット品などの外れ値に影響されます。現段階では仕入判定の想定売価には自動反映しません。</div>
     </div>
 
-    <div class="note">
-      型番が自動抽出できた商品では「型番のみ」が相場確認に強いことがあります。検索結果が少ない場合は「商品名」に戻してください。
+    <div class="buttons">
+      <a id="mercari" class="button search" href="#">メルカリで検索</a>
+      <a id="yahooClosed" class="button search" href="#">ヤフオク落札一覧</a>
     </div>
   </section>
 
   <section class="card">
-    <div class="history-head">
-      <h2>最近読み取った商品</h2>
-      <button id="clearHistoryBtn" class="history-clear" type="button">履歴を削除</button>
-    </div>
+    <div class="history-head"><h2>最近読み取った商品</h2><button id="clearHistoryBtn" class="history-clear" type="button">履歴を削除</button></div>
     <div id="historyList" class="history-list"></div>
   </section>
 
   <section class="card">
     <div class="grid">
-      <div>
-        <label>仕入価格</label>
-        <input id="buy" type="number" inputmode="decimal" min="0" placeholder="3980">
-      </div>
-      <div>
-        <label>想定売価</label>
-        <input id="sell" type="number" inputmode="decimal" min="0" placeholder="7500">
-      </div>
-      <div>
-        <label>送料</label>
-        <input id="shipping" type="number" inputmode="decimal" min="0" value="750">
-      </div>
-      <div>
-        <label>販売手数料（%）</label>
-        <input id="fee" type="number" inputmode="decimal" min="0" max="100" step="0.1" value="10">
-      </div>
-      <div class="wide">
-        <label>目標利益</label>
-        <input id="target" type="number" inputmode="decimal" min="0" value="2000">
-      </div>
+      <div><label>仕入価格</label><input id="buy" type="number" inputmode="decimal" min="0" placeholder="3980"></div>
+      <div><label>想定売価</label><input id="sell" type="number" inputmode="decimal" min="0" placeholder="7500"></div>
+      <div><label>送料</label><input id="shipping" type="number" inputmode="decimal" min="0" value="750"></div>
+      <div><label>販売手数料（%）</label><input id="fee" type="number" inputmode="decimal" min="0" max="100" step="0.1" value="10"></div>
+      <div class="wide"><label>目標利益</label><input id="target" type="number" inputmode="decimal" min="0" value="2000"></div>
     </div>
-
-    <div class="buttons">
-      <button id="calcBtn" class="primary" type="button">仕入判定する</button>
-      <button id="resetBtn" class="secondary" type="button">金額をリセット</button>
-    </div>
+    <div class="buttons"><button id="calcBtn" class="primary" type="button">仕入判定する</button><button id="resetBtn" class="secondary" type="button">金額をリセット</button></div>
   </section>
 
   <section class="card">
-    <div class="result">
-      <div id="judge" class="judge">入力待ち</div>
-      <div id="judgeSub" class="sub">仕入価格と想定売価を入力してください</div>
-    </div>
+    <div class="result"><div id="judge" class="judge">入力待ち</div><div id="judgeSub" class="sub">仕入価格と想定売価を入力してください</div></div>
     <div class="metrics">
       <div class="metric"><div class="k">想定利益</div><div id="profit" class="v">—</div></div>
       <div class="metric"><div class="k">利益率（売価比）</div><div id="margin" class="v">—</div></div>
@@ -221,554 +173,40 @@
       <div class="metric"><div class="k">最大仕入価格</div><div id="maxBuy" class="v">—</div></div>
       <div class="metric wide"><div class="k">最大仕入価格との差</div><div id="room" class="v">—</div></div>
     </div>
-    <div class="note" style="margin-top:10px">
-      判定基準：想定利益が目標利益以上＝仕入候補、黒字だが目標未達＝要検討、赤字＝見送り。
-    </div>
   </section>
 </main>
 
 <script>
 (() => {
-  const WORKER_URL = "https://shiire-check-api.7twfc7rt87.workers.dev/";
-  const HISTORY_KEY = "shiire_history_v21";
-  const $ = id => document.getElementById(id);
-
-  let scanner = null;
-  let scanning = false;
-  let scanLocked = false;
-  let terms = { full:"", brandModel:"", model:"" };
-  let activeTermMode = "full";
-
-  const savedIds = ["jan","name","shipping","fee","target"];
-  const term = () => $("name").value.trim() || $("jan").value.trim();
-
-  const normalizeSpaces = s => String(s || "").replace(/[\s　]+/g, " ").trim();
-
-  const cleanProductName = raw => {
-    let s = normalizeSpaces(raw);
-    const noise = [
-      "送料無料","送料込み","即納","新品","未使用","正規品","公式","限定",
-      "ポイント","最安値","あすつく","翌日発送","在庫あり","お買い得"
-    ];
-    noise.forEach(w => {
-      s = s.replace(new RegExp(w, "gi"), " ");
-    });
-    s = s.replace(/[【】\[\]〈〉<>]/g, " ");
-    s = s.replace(/[｜|]/g, " ");
-    return normalizeSpaces(s);
-  };
-
-  const extractModel = raw => {
-    const s = normalizeSpaces(raw).toUpperCase();
-
-    // 型番らしい候補: 英字と数字を両方含み、4文字以上。
-    const tokens = s.match(/[A-Z0-9][A-Z0-9._\/\-]{3,}/g) || [];
-
-    const filtered = tokens.filter(t => {
-      if (!/[A-Z]/.test(t) || !/\d/.test(t)) return false;
-      if (/^\d{8,14}$/.test(t)) return false;      // JANなど
-      if (/^\d+(ML|L|G|KG|CM|MM|W|V)$/.test(t)) return false;
-      if (/^(USB|HDMI|WIFI|BLUETOOTH)\d*$/.test(t)) return false;
-      return true;
-    });
-
-    if (!filtered.length) return "";
-
-    // ハイフンを含む・長い・数字と英字の切替が多い候補を優先
-    const score = t => {
-      let sc = t.length;
-      if (t.includes("-")) sc += 4;
-      if (t.includes("_")) sc += 2;
-      if (/[A-Z]{2,}/.test(t)) sc += 1;
-      if (/\d{2,}/.test(t)) sc += 1;
-      return sc;
-    };
-
-    filtered.sort((a,b) => score(b) - score(a));
-    return filtered[0];
-  };
-
-  const buildTerms = (name, brand) => {
-    const full = cleanProductName(name);
-    const model = extractModel(name);
-    const brandClean = cleanProductName(brand);
-
-    let brandModel = "";
-    if (model && brandClean) {
-      brandModel = normalizeSpaces(brandClean + " " + model);
-    } else if (model) {
-      brandModel = model;
-    }
-
-    return { full, brandModel, model };
-  };
-
-  const setTermMode = mode => {
-    if (!terms[mode]) return;
-    activeTermMode = mode;
-    $("name").value = terms[mode];
-    localStorage.setItem("shiire_name", terms[mode]);
-    updateLinks();
-
-    ["termFullBtn","termBrandModelBtn","termModelBtn"].forEach(id => $(id).classList.remove("active"));
-    const map = {
-      full:"termFullBtn",
-      brandModel:"termBrandModelBtn",
-      model:"termModelBtn"
-    };
-    $(map[mode]).classList.add("active");
-
-    const hint = {
-      full:"商品名ベースで検索",
-      brandModel:"ブランド名＋型番で検索",
-      model:"型番だけで検索（同一商品の比較向き）"
-    };
-    $("termHint").textContent = hint[mode] || "";
-  };
-
-  const refreshTermButtons = () => {
-    $("termFullBtn").disabled = !terms.full;
-    $("termBrandModelBtn").disabled = !terms.brandModel;
-    $("termModelBtn").disabled = !terms.model;
-  };
-
-  const setScanStatus = (msg, type="") => {
-    $("scanStatus").textContent = msg;
-    $("scanStatus").className = "status" + (type ? " " + type : "");
-  };
-
-  const updateLinks = () => {
-    const raw = term();
-    const q = encodeURIComponent(raw);
-    $("mercari").href = raw ? "https://jp.mercari.com/search?keyword=" + q : "#";
-    $("yahooClosed").href = raw ? "https://auctions.yahoo.co.jp/closedsearch/closedsearch?p=" + q : "#";
-    $("yahooCurrent").href = raw ? "https://auctions.yahoo.co.jp/search/search?p=" + q : "#";
-  };
-
-  const guard = e => {
-    if (!term()) {
-      e.preventDefault();
-      alert("JANコードか商品名を入力してください");
-    }
-  };
-
-  ["mercari","yahooClosed","yahooCurrent"].forEach(id => $(id).addEventListener("click", guard));
-
-  savedIds.forEach(id => {
-    const v = localStorage.getItem("shiire_" + id);
-    if (v !== null) $(id).value = v;
-    $(id).addEventListener("input", () => {
-      localStorage.setItem("shiire_" + id, $(id).value);
-      if (id === "jan" || id === "name") updateLinks();
-    });
-  });
-
-  const setLookupStatus = (msg, type="") => {
-    $("lookupStatus").textContent = msg;
-    $("lookupStatus").className = "status" + (type ? " " + type : "");
-  };
-
-  const clearProduct = () => {
-    $("productBox").classList.remove("show");
-    $("productImage").removeAttribute("src");
-    $("productNameDisplay").textContent = "";
-    $("productBrandDisplay").textContent = "";
-    $("productModelDisplay").textContent = "";
-    $("productYahooPrice").textContent = "";
-    $("productHitCount").textContent = "";
-    terms = { full:"", brandModel:"", model:"" };
-    refreshTermButtons();
-    $("termHint").textContent = "";
-    ["termFullBtn","termBrandModelBtn","termModelBtn"].forEach(id => $(id).classList.remove("active"));
-    setLookupStatus("");
-  };
-
-  const loadHistory = () => {
-    try {
-      const parsed = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  };
-
-  const saveHistory = history => {
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0,10)));
-  };
-
-  const addHistory = item => {
-    let history = loadHistory().filter(x => x.jan !== item.jan);
-    history.unshift(item);
-    saveHistory(history);
-    renderHistory();
-  };
-
-  const escapeHtml = s => String(s || "")
-    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
-    .replace(/"/g,"&quot;").replace(/'/g,"&#039;");
-
-  const renderHistory = () => {
-    const history = loadHistory();
-    const box = $("historyList");
-
-    if (!history.length) {
-      box.innerHTML = '<div class="history-empty">まだ履歴はありません。</div>';
-      return;
-    }
-
-    box.innerHTML = history.map((item, idx) => {
-      const img = item.image
-        ? `<img src="${escapeHtml(item.image)}" alt="">`
-        : `<div class="history-placeholder">NO IMG</div>`;
-      return `
-        <div class="history-item">
-          ${img}
-          <div>
-            <div class="history-name">${escapeHtml(item.name || "商品名なし")}</div>
-            <div class="history-jan">JAN: ${escapeHtml(item.jan || "")}</div>
-          </div>
-          <button class="history-use" type="button" data-history-index="${idx}">呼出</button>
-        </div>`;
-    }).join("");
-
-    box.querySelectorAll("[data-history-index]").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const i = Number(btn.dataset.historyIndex);
-        const item = loadHistory()[i];
-        if (!item) return;
-
-        $("jan").value = item.jan || "";
-        localStorage.setItem("shiire_jan", item.jan || "");
-
-        $("productNameDisplay").textContent = item.name || "商品名なし";
-        $("productBrandDisplay").textContent = item.brand ? "ブランド：" + item.brand : "";
-        $("productModelDisplay").textContent = item.model ? "推定型番：" + item.model : "推定型番：見つかりませんでした";
-        $("productYahooPrice").textContent = item.yahooPrice !== null && item.yahooPrice !== undefined
-          ? "Yahoo!参考価格：" + Number(item.yahooPrice).toLocaleString("ja-JP") + "円"
-          : "";
-        $("productHitCount").textContent = item.hitCount !== null && item.hitCount !== undefined
-          ? "JAN一致候補：" + item.hitCount + "件"
-          : "";
-
-        if (item.image) {
-          $("productImage").src = item.image;
-          $("productImage").style.display = "block";
-        } else {
-          $("productImage").style.display = "none";
-        }
-
-        $("productBox").classList.add("show");
-        terms = {
-          full:item.termFull || cleanProductName(item.name || ""),
-          brandModel:item.termBrandModel || "",
-          model:item.model || ""
-        };
-        refreshTermButtons();
-
-        if (terms.model) setTermMode("model");
-        else if (terms.brandModel) setTermMode("brandModel");
-        else setTermMode("full");
-
-        setLookupStatus("履歴から商品情報を呼び出しました。", "ok");
-        updateLinks();
-        window.scrollTo({top:0,behavior:"smooth"});
-      });
-    });
-  };
-
-  const lookupProduct = async () => {
-    const jan = $("jan").value.trim();
-
-    if (!/^\d{8}$|^\d{13}$/.test(jan)) {
-      setLookupStatus("JANコードは8桁または13桁の数字で入力してください", "error");
-      return;
-    }
-
-    $("lookupBtn").disabled = true;
-    $("lookupBtn").textContent = "取得中…";
-    setLookupStatus("Yahoo!の商品情報を検索しています…", "loading");
-
-    try {
-      const res = await fetch(WORKER_URL + "?jan=" + encodeURIComponent(jan), {
-        method: "GET",
-        cache: "no-store"
-      });
-
-      let data;
-      try {
-        data = await res.json();
-      } catch {
-        throw new Error("APIから正しいデータが返りませんでした");
-      }
-
-      if (!res.ok) {
-        throw new Error(data.error || "商品検索に失敗しました");
-      }
-
-      if (!data.found) {
-        clearProduct();
-        setLookupStatus("このJANの商品が見つかりませんでした。商品名を手入力してください。", "error");
-        return;
-      }
-
-      const productName = (data.name || "").trim();
-      const brand = (data.brand || "").trim();
-      const image = data.image || "";
-      terms = buildTerms(productName, brand);
-
-      $("productNameDisplay").textContent = productName || "商品名なし";
-      $("productBrandDisplay").textContent = brand ? "ブランド：" + brand : "";
-      $("productModelDisplay").textContent = terms.model
-        ? "推定型番：" + terms.model
-        : "推定型番：見つかりませんでした";
-      $("productYahooPrice").textContent =
-        data.yahooPrice !== null && data.yahooPrice !== undefined
-          ? "Yahoo!参考価格：" + Number(data.yahooPrice).toLocaleString("ja-JP") + "円"
-          : "";
-      $("productHitCount").textContent =
-        data.hitCount !== null && data.hitCount !== undefined
-          ? "JAN一致候補：" + data.hitCount + "件"
-          : "";
-
-      if (image) {
-        $("productImage").src = image;
-        $("productImage").style.display = "block";
-      } else {
-        $("productImage").style.display = "none";
-      }
-
-      $("productBox").classList.add("show");
-      refreshTermButtons();
-
-      // 型番が取れたら相場検索向けに型番のみを初期選択。
-      // 取れなければ商品名を使用。
-      if (terms.model) {
-        setTermMode("model");
-      } else if (terms.brandModel) {
-        setTermMode("brandModel");
-      } else {
-        setTermMode("full");
-      }
-
-      addHistory({
-        jan,
-        name: productName,
-        brand,
-        model: terms.model,
-        termFull: terms.full,
-        termBrandModel: terms.brandModel,
-        image,
-        yahooPrice: data.yahooPrice ?? null,
-        hitCount: data.hitCount ?? null,
-        savedAt: Date.now()
-      });
-
-      updateLinks();
-      setLookupStatus("商品情報を取得しました。検索語を切り替えて相場を確認できます。", "ok");
-    } catch (err) {
-      clearProduct();
-      setLookupStatus("取得エラー：" + (err.message || "通信に失敗しました"), "error");
-    } finally {
-      $("lookupBtn").disabled = false;
-      $("lookupBtn").textContent = "JANから商品を取得";
-    }
-  };
-
-  const stopScanner = async () => {
-    if (!scanner || !scanning) {
-      $("scannerWrap").classList.remove("show");
-      return;
-    }
-    try { await scanner.stop(); } catch (e) {}
-    try { await scanner.clear(); } catch (e) {}
-    scanning = false;
-    $("scannerWrap").classList.remove("show");
-  };
-
-  const handleDecoded = async decodedText => {
-    if (scanLocked) return;
-    const raw = String(decodedText || "").replace(/\D/g, "");
-
-    if (!/^\d{8}$|^\d{13}$/.test(raw)) {
-      setScanStatus("JAN以外のコードを検出しました。バーコードをもう一度合わせてください。", "error");
-      return;
-    }
-
-    scanLocked = true;
-    $("jan").value = raw;
-    localStorage.setItem("shiire_jan", raw);
-    updateLinks();
-    setScanStatus("JAN " + raw + " を読み取りました。商品情報を取得します…", "ok");
-
-    await stopScanner();
-    await lookupProduct();
-
-    window.setTimeout(() => { scanLocked = false; }, 1200);
-  };
-
-  const startScanner = async () => {
-    if (typeof Html5Qrcode === "undefined") {
-      setScanStatus("バーコード読取ライブラリを読み込めませんでした。通信状態を確認してください。", "error");
-      return;
-    }
-
-    await stopScanner();
-    $("scannerWrap").classList.add("show");
-    setScanStatus("カメラを起動しています…", "loading");
-    scanLocked = false;
-
-    try {
-      scanner = new Html5Qrcode("reader");
-      await scanner.start(
-        { facingMode: "environment" },
-        { fps: 12, qrbox: { width: 290, height: 150 }, aspectRatio: 1.777778 },
-        handleDecoded,
-        () => {}
-      );
-      scanning = true;
-      setScanStatus("バーコードにカメラを合わせてください。", "loading");
-    } catch (err) {
-      scanning = false;
-      $("scannerWrap").classList.remove("show");
-      setScanStatus(
-        "カメラを起動できませんでした。Safariのカメラ許可を確認するか、「写真から読み取る」を使ってください。",
-        "error"
-      );
-    }
-  };
-
-  $("scanBtn").addEventListener("click", startScanner);
-  $("stopScanBtn").addEventListener("click", async () => {
-    await stopScanner();
-    setScanStatus("カメラを閉じました。");
-  });
-  $("retryScanBtn").addEventListener("click", startScanner);
-
-  $("barcodeFile").addEventListener("change", async e => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-
-    if (typeof Html5Qrcode === "undefined") {
-      setScanStatus("バーコード読取ライブラリを読み込めませんでした。", "error");
-      return;
-    }
-
-    await stopScanner();
-    setScanStatus("画像からバーコードを読み取っています…", "loading");
-
-    try {
-      const fileScanner = new Html5Qrcode("reader");
-      $("scannerWrap").classList.add("show");
-      const decodedText = await fileScanner.scanFile(file, true);
-      try { await fileScanner.clear(); } catch (e) {}
-      $("scannerWrap").classList.remove("show");
-      await handleDecoded(decodedText);
-    } catch (err) {
-      $("scannerWrap").classList.remove("show");
-      setScanStatus("画像からバーコードを読み取れませんでした。バーコードを大きく撮影して再度試してください。", "error");
-    } finally {
-      e.target.value = "";
-    }
-  });
-
-  $("termFullBtn").addEventListener("click", () => setTermMode("full"));
-  $("termBrandModelBtn").addEventListener("click", () => setTermMode("brandModel"));
-  $("termModelBtn").addEventListener("click", () => setTermMode("model"));
-
-  $("lookupBtn").addEventListener("click", lookupProduct);
-
-  $("clearProductBtn").addEventListener("click", () => {
-    clearProduct();
-    $("name").value = "";
-    localStorage.removeItem("shiire_name");
-    updateLinks();
-  });
-
-  $("clearHistoryBtn").addEventListener("click", () => {
-    if (confirm("最近読み取った商品の履歴を削除しますか？")) {
-      localStorage.removeItem(HISTORY_KEY);
-      renderHistory();
-    }
-  });
-
-  $("jan").addEventListener("keydown", e => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      lookupProduct();
-    }
-  });
-
-  const num = id => {
-    const v = parseFloat($(id).value);
-    return Number.isFinite(v) ? v : 0;
-  };
-  const yen = x => Number.isFinite(x) ? Math.round(x).toLocaleString("ja-JP") + "円" : "—";
-
-  const empty = () => {
-    $("judge").textContent = "入力待ち";
-    $("judge").className = "judge";
-    $("judgeSub").textContent = "仕入価格と想定売価を入力してください";
-    ["profit","margin","feeAmount","maxBuy","room"].forEach(id => $(id).textContent = "—");
-  };
-
-  const calculate = () => {
-    const buy = num("buy"), sell = num("sell"), shipping = num("shipping"), feePct = num("fee"), target = num("target");
-    if (sell <= 0) return empty();
-
-    const feeAmount = sell * feePct / 100;
-    const profit = sell - feeAmount - shipping - buy;
-    const margin = profit / sell * 100;
-    const maxBuy = sell - feeAmount - shipping - target;
-    const room = maxBuy - buy;
-
-    $("profit").textContent = yen(profit);
-    $("margin").textContent = margin.toFixed(1) + "%";
-    $("feeAmount").textContent = yen(feeAmount);
-    $("maxBuy").textContent = yen(maxBuy);
-    $("room").textContent = (room >= 0 ? "+" : "") + yen(room);
-
-    $("judge").className = "judge";
-    if (profit >= target) {
-      $("judge").textContent = "🟢 仕入候補";
-      $("judge").classList.add("good");
-      $("judgeSub").textContent = "目標利益をクリア";
-    } else if (profit >= 0) {
-      $("judge").textContent = "🟠 要検討";
-      $("judge").classList.add("warn");
-      $("judgeSub").textContent = "黒字ですが目標利益には未達";
-    } else {
-      $("judge").textContent = "🔴 見送り";
-      $("judge").classList.add("bad");
-      $("judgeSub").textContent = "想定条件では赤字";
-    }
-  };
-
-  $("calcBtn").addEventListener("click", calculate);
-  $("resetBtn").addEventListener("click", () => {
-    $("buy").value = "";
-    $("sell").value = "";
-    empty();
-  });
-  ["buy","sell","shipping","fee","target"].forEach(id => $(id).addEventListener("input", calculate));
-
-  $("copyBtn").addEventListener("click", async () => {
-    const q = term();
-    if (!q) return alert("JANコードか商品名を入力してください");
-    try {
-      await navigator.clipboard.writeText(q);
-      alert("検索語をコピーしました");
-    } catch {
-      prompt("この検索語をコピーしてください", q);
-    }
-  });
-
-  window.addEventListener("pagehide", () => {
-    if (scanner && scanning) scanner.stop().catch(() => {});
-  });
-
-  refreshTermButtons();
-  renderHistory();
-  updateLinks();
+  const WORKER_URL="https://shiire-check-api.7twfc7rt87.workers.dev/", HISTORY_KEY="shiire_history_v3", $=id=>document.getElementById(id);
+  let scanner=null, scanning=false, scanLocked=false, terms={full:"",brandModel:"",model:""}, activeTermMode="full";
+  const term=()=>$("name").value.trim()||$("jan").value.trim(), norm=s=>String(s||"").replace(/[\s　]+/g," ").trim(), yen=n=>Number.isFinite(n)?Math.round(n).toLocaleString("ja-JP")+"円":"—";
+
+  function cleanName(raw){let s=norm(raw);["送料無料","送料込み","即納","新品","未使用","正規品","公式","限定","ポイント","最安値","あすつく","翌日発送","在庫あり"].forEach(w=>s=s.replace(new RegExp(w,"gi")," "));return norm(s.replace(/[【】\[\]〈〉<>｜|]/g," "));}
+  function extractModel(raw){const arr=(norm(raw).toUpperCase().match(/[A-Z0-9][A-Z0-9._\/\-]{3,}/g)||[]).filter(t=>/[A-Z]/.test(t)&&/\d/.test(t)&&!/^\d{8,14}$/.test(t)&&!/^\d+(ML|L|G|KG|CM|MM|W|V)$/.test(t));arr.sort((a,b)=>(b.length+(b.includes("-")?4:0))-(a.length+(a.includes("-")?4:0)));return arr[0]||"";}
+  function buildTerms(name,brand){const full=cleanName(name),model=extractModel(name),b=cleanName(brand);return{full,model,brandModel:model?(b?b+" "+model:model):""};}
+  function updateLinks(){const q=encodeURIComponent(term());$("mercari").href=q?"https://jp.mercari.com/search?keyword="+q:"#";$("yahooClosed").href=q?"https://auctions.yahoo.co.jp/closedsearch/closedsearch?p="+q:"#";}
+  function setStatus(id,msg,type=""){$ (id).textContent=msg;$ (id).className="status"+(type?" "+type:"");}
+  function refreshButtons(){$("termFullBtn").disabled=!terms.full;$("termBrandModelBtn").disabled=!terms.brandModel;$("termModelBtn").disabled=!terms.model;}
+  async function setTermMode(mode,fetchMarket=true){if(!terms[mode])return;activeTermMode=mode;$("name").value=terms[mode];["termFullBtn","termBrandModelBtn","termModelBtn"].forEach(id=>$(id).classList.remove("active"));$({full:"termFullBtn",brandModel:"termBrandModelBtn",model:"termModelBtn"}[mode]).classList.add("active");$("termHint").textContent={full:"商品名ベース",brandModel:"ブランド＋型番",model:"型番のみ（同一商品比較向き）"}[mode];updateLinks();if(fetchMarket)await lookupMarket();}
+  function clearMarket(){["marketMin","marketAvg","marketMax","marketCount"].forEach(id=>$(id).textContent="—");$("marketQuery").textContent="—";$("marketSourceLink").href="#";setStatus("marketStatus","");}
+  async function lookupMarket(){const q=term();if(!q)return;setStatus("marketStatus","落札相場を取得中…","loading");$("marketQuery").textContent="検索語："+q;try{const r=await fetch(WORKER_URL+"?market=yahoo&q="+encodeURIComponent(q),{cache:"no-store"});const d=await r.json();if(!r.ok)throw new Error(d.error||"取得失敗");$("marketSourceLink").href=d.sourceUrl||"#";if(!d.found)throw new Error("相場集計値を取得できませんでした");$("marketMin").textContent=d.min!==null?yen(d.min):"—";$("marketAvg").textContent=d.avg!==null?yen(d.avg):"—";$("marketMax").textContent=d.max!==null?yen(d.max):"—";$("marketCount").textContent=d.count!==null?Number(d.count).toLocaleString("ja-JP")+"件":"—";setStatus("marketStatus","Yahoo!オークションの公開相場を取得しました。","ok");}catch(e){setStatus("marketStatus","相場取得エラー："+e.message,"error");}}
+  async function lookupProduct(){const jan=$("jan").value.trim();if(!/^\d{8}$|^\d{13}$/.test(jan))return setStatus("lookupStatus","JANは8桁または13桁で入力してください","error");$("lookupBtn").disabled=true;setStatus("lookupStatus","商品情報を取得中…","loading");try{const r=await fetch(WORKER_URL+"?jan="+jan,{cache:"no-store"}),d=await r.json();if(!r.ok)throw new Error(d.error||"取得失敗");if(!d.found)throw new Error("商品が見つかりません");terms=buildTerms(d.name||"",d.brand||"");$("productNameDisplay").textContent=d.name||"商品名なし";$("productBrandDisplay").textContent=d.brand?"ブランド："+d.brand:"";$("productModelDisplay").textContent=terms.model?"推定型番："+terms.model:"推定型番：なし";$("productYahooPrice").textContent=d.yahooPrice!=null?"Yahoo!参考価格："+yen(Number(d.yahooPrice)):"";if(d.image){$("productImage").src=d.image;$("productImage").style.display="block"}else $("productImage").style.display="none";$("productBox").classList.add("show");refreshButtons();await setTermMode(terms.model?"model":terms.brandModel?"brandModel":"full",false);addHistory({jan,name:d.name||"",brand:d.brand||"",model:terms.model,image:d.image||""});setStatus("lookupStatus","商品情報を取得しました。","ok");await lookupMarket();}catch(e){setStatus("lookupStatus","取得エラー："+e.message,"error");}finally{$("lookupBtn").disabled=false;}}
+  async function stopScanner(){if(scanner&&scanning){try{await scanner.stop()}catch{}try{await scanner.clear()}catch{}}scanning=false;$("scannerWrap").classList.remove("show");}
+  async function decoded(txt){if(scanLocked)return;const raw=String(txt||"").replace(/\D/g,"");if(!/^\d{8}$|^\d{13}$/.test(raw))return;scanLocked=true;$("jan").value=raw;await stopScanner();await lookupProduct();setTimeout(()=>scanLocked=false,1200);}
+  async function startScanner(){await stopScanner();$("scannerWrap").classList.add("show");try{scanner=new Html5Qrcode("reader");await scanner.start({facingMode:"environment"},{fps:12,qrbox:{width:290,height:150},aspectRatio:1.7778},decoded,()=>{});scanning=true;setStatus("scanStatus","バーコードに合わせてください","loading");}catch(e){$("scannerWrap").classList.remove("show");setStatus("scanStatus","カメラを起動できませんでした","error");}}
+  function getHistory(){try{const h=JSON.parse(localStorage.getItem(HISTORY_KEY)||"[]");return Array.isArray(h)?h:[]}catch{return[]}}
+  function addHistory(item){let h=getHistory().filter(x=>x.jan!==item.jan);h.unshift(item);localStorage.setItem(HISTORY_KEY,JSON.stringify(h.slice(0,10)));renderHistory();}
+  function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
+  function renderHistory(){const h=getHistory(),box=$("historyList");if(!h.length){box.innerHTML='<div class="history-empty">まだ履歴はありません。</div>';return}box.innerHTML=h.map((x,i)=>`<div class="history-item">${x.image?`<img src="${esc(x.image)}">`:'<div class="history-placeholder">NO IMG</div>'}<div><div class="history-name">${esc(x.name)}</div><div class="history-jan">JAN: ${esc(x.jan)}</div></div><button class="history-use" data-i="${i}">呼出</button></div>`).join("");box.querySelectorAll("[data-i]").forEach(b=>b.onclick=async()=>{const x=getHistory()[Number(b.dataset.i)];$("jan").value=x.jan;await lookupProduct();window.scrollTo({top:0,behavior:"smooth"});});}
+  function calc(){const n=id=>Number($(id).value)||0,b=n("buy"),s=n("sell"),sh=n("shipping"),fp=n("fee"),t=n("target");if(s<=0)return;const fa=s*fp/100,p=s-fa-sh-b,m=p/s*100,mb=s-fa-sh-t,r=mb-b;$("profit").textContent=yen(p);$("margin").textContent=m.toFixed(1)+"%";$("feeAmount").textContent=yen(fa);$("maxBuy").textContent=yen(mb);$("room").textContent=(r>=0?"+":"")+yen(r);$("judge").className="judge";if(p>=t){$("judge").textContent="🟢 仕入候補";$("judge").classList.add("good");$("judgeSub").textContent="目標利益をクリア"}else if(p>=0){$("judge").textContent="🟠 要検討";$("judge").classList.add("warn");$("judgeSub").textContent="黒字だが目標未達"}else{$("judge").textContent="🔴 見送り";$("judge").classList.add("bad");$("judgeSub").textContent="想定条件では赤字"}}
+  $("scanBtn").onclick=startScanner;$("stopScanBtn").onclick=stopScanner;$("retryScanBtn").onclick=startScanner;$("lookupBtn").onclick=lookupProduct;$("refreshMarketBtn").onclick=lookupMarket;
+  $("termFullBtn").onclick=()=>setTermMode("full");$("termBrandModelBtn").onclick=()=>setTermMode("brandModel");$("termModelBtn").onclick=()=>setTermMode("model");
+  $("clearHistoryBtn").onclick=()=>{if(confirm("履歴を削除しますか？")){localStorage.removeItem(HISTORY_KEY);renderHistory();}};
+  $("clearProductBtn").onclick=()=>{terms={full:"",brandModel:"",model:""};$("name").value="";$("productBox").classList.remove("show");refreshButtons();clearMarket();updateLinks();};
+  $("calcBtn").onclick=calc;["buy","sell","shipping","fee","target"].forEach(id=>$(id).oninput=calc);$("name").oninput=updateLinks;
+  $("barcodeFile").onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{const fs=new Html5Qrcode("reader");$("scannerWrap").classList.add("show");const txt=await fs.scanFile(f,true);try{await fs.clear()}catch{}$("scannerWrap").classList.remove("show");await decoded(txt);}catch{setStatus("scanStatus","画像から読み取れませんでした","error")}e.target.value="";};
+  refreshButtons();renderHistory();updateLinks();
 })();
 </script>
 </body>
