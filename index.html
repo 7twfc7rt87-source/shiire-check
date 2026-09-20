@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#111827">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <title>仕入チェック Ver.3</title>
+  <title>仕入チェック Ver.4</title>
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <style>
     :root {
@@ -69,8 +69,8 @@
 </head>
 <body>
 <main>
-  <h1>仕入チェック <span class="pill">Ver.3</span></h1>
-  <div class="sub">Yahoo!オークション落札相場を自動取得</div>
+  <h1>仕入チェック <span class="pill">Ver.4</span></h1>
+  <div class="sub">中央値・四分位点・外れ値除外に対応</div>
 
   <section class="card">
     <div class="buttons">
@@ -124,22 +124,44 @@
     <div id="marketCard" class="market-card">
       <div class="market-head">
         <div>
-          <div class="market-title">Yahoo!オークション 終了180日相場</div>
+          <div class="market-title">Yahoo!オークション 相場分析</div>
           <div id="marketQuery" class="market-query">商品取得後に自動検索します</div>
         </div>
       </div>
+
       <div id="marketStatus" class="status"></div>
+
+      <div class="note" style="margin:6px 0 7px;font-weight:700;color:#374151;">重要指標（直近最大100件）</div>
       <div class="market-stats">
-        <div class="market-stat"><div class="k">最安</div><div id="marketMin" class="v">—</div></div>
-        <div class="market-stat"><div class="k">平均</div><div id="marketAvg" class="v">—</div></div>
-        <div class="market-stat"><div class="k">最高</div><div id="marketMax" class="v">—</div></div>
-        <div class="market-stat"><div class="k">落札件数</div><div id="marketCount" class="v">—</div></div>
+        <div class="market-stat"><div class="k">外れ値除外中央値</div><div id="marketFilteredMedian" class="v">—</div></div>
+        <div class="market-stat"><div class="k">25%点</div><div id="marketQ1" class="v">—</div></div>
+        <div class="market-stat"><div class="k">75%点</div><div id="marketQ3" class="v">—</div></div>
+        <div class="market-stat"><div class="k">有効件数</div><div id="marketFilteredCount" class="v">—</div></div>
+      </div>
+
+      <div class="note" style="margin:10px 0 7px;font-weight:700;color:#374151;">参考値</div>
+      <div class="market-stats">
+        <div class="market-stat"><div class="k">生中央値</div><div id="marketRawMedian" class="v">—</div></div>
+        <div class="market-stat"><div class="k">公式平均</div><div id="marketAvg" class="v">—</div></div>
+        <div class="market-stat"><div class="k">公式最安</div><div id="marketMin" class="v">—</div></div>
+        <div class="market-stat"><div class="k">公式最高</div><div id="marketMax" class="v">—</div></div>
+      </div>
+
+      <div id="marketQuality" class="market-note" style="font-size:12px;margin-top:10px;"></div>
+
+      <div class="market-actions">
+        <button id="useMedianBtn" class="primary smallbtn" type="button" disabled>中央値を想定売価にセット</button>
+        <button id="refreshMarketBtn" class="secondary smallbtn" type="button">相場を再取得</button>
       </div>
       <div class="market-actions">
-        <button id="refreshMarketBtn" class="secondary smallbtn" type="button">相場を再取得</button>
         <a id="marketSourceLink" class="button search smallbtn" href="#" target="_blank" rel="noopener">元ページを見る</a>
+        <div></div>
       </div>
-      <div class="market-note">※平均は高額品・ジャンク・セット品などの外れ値に影響されます。現段階では仕入判定の想定売価には自動反映しません。</div>
+
+      <div class="market-note">
+        外れ値除外はIQR（四分位範囲）方式。1円落札や極端な高額落札の影響を抑えます。
+        ただし、別モデル・ジャンク・まとめ売りなど「内容の違う商品」は統計処理だけでは完全に除外できません。
+      </div>
     </div>
 
     <div class="buttons">
@@ -179,7 +201,7 @@
 <script>
 (() => {
   const WORKER_URL="https://shiire-check-api.7twfc7rt87.workers.dev/", HISTORY_KEY="shiire_history_v3", $=id=>document.getElementById(id);
-  let scanner=null, scanning=false, scanLocked=false, terms={full:"",brandModel:"",model:""}, activeTermMode="full";
+  let scanner=null, scanning=false, scanLocked=false, terms={full:"",brandModel:"",model:""}, activeTermMode="full", currentFilteredMedian=null;
   const term=()=>$("name").value.trim()||$("jan").value.trim(), norm=s=>String(s||"").replace(/[\s　]+/g," ").trim(), yen=n=>Number.isFinite(n)?Math.round(n).toLocaleString("ja-JP")+"円":"—";
 
   function cleanName(raw){let s=norm(raw);["送料無料","送料込み","即納","新品","未使用","正規品","公式","限定","ポイント","最安値","あすつく","翌日発送","在庫あり"].forEach(w=>s=s.replace(new RegExp(w,"gi")," "));return norm(s.replace(/[【】\[\]〈〉<>｜|]/g," "));}
@@ -189,8 +211,68 @@
   function setStatus(id,msg,type=""){$ (id).textContent=msg;$ (id).className="status"+(type?" "+type:"");}
   function refreshButtons(){$("termFullBtn").disabled=!terms.full;$("termBrandModelBtn").disabled=!terms.brandModel;$("termModelBtn").disabled=!terms.model;}
   async function setTermMode(mode,fetchMarket=true){if(!terms[mode])return;activeTermMode=mode;$("name").value=terms[mode];["termFullBtn","termBrandModelBtn","termModelBtn"].forEach(id=>$(id).classList.remove("active"));$({full:"termFullBtn",brandModel:"termBrandModelBtn",model:"termModelBtn"}[mode]).classList.add("active");$("termHint").textContent={full:"商品名ベース",brandModel:"ブランド＋型番",model:"型番のみ（同一商品比較向き）"}[mode];updateLinks();if(fetchMarket)await lookupMarket();}
-  function clearMarket(){["marketMin","marketAvg","marketMax","marketCount"].forEach(id=>$(id).textContent="—");$("marketQuery").textContent="—";$("marketSourceLink").href="#";setStatus("marketStatus","");}
-  async function lookupMarket(){const q=term();if(!q)return;setStatus("marketStatus","落札相場を取得中…","loading");$("marketQuery").textContent="検索語："+q;try{const r=await fetch(WORKER_URL+"?market=yahoo&q="+encodeURIComponent(q),{cache:"no-store"});const d=await r.json();if(!r.ok)throw new Error(d.error||"取得失敗");$("marketSourceLink").href=d.sourceUrl||"#";if(!d.found)throw new Error("相場集計値を取得できませんでした");$("marketMin").textContent=d.min!==null?yen(d.min):"—";$("marketAvg").textContent=d.avg!==null?yen(d.avg):"—";$("marketMax").textContent=d.max!==null?yen(d.max):"—";$("marketCount").textContent=d.count!==null?Number(d.count).toLocaleString("ja-JP")+"件":"—";setStatus("marketStatus","Yahoo!オークションの公開相場を取得しました。","ok");}catch(e){setStatus("marketStatus","相場取得エラー："+e.message,"error");}}
+  function clearMarket(){
+    ["marketFilteredMedian","marketQ1","marketQ3","marketFilteredCount","marketRawMedian","marketAvg","marketMin","marketMax"]
+      .forEach(id=>$(id).textContent="—");
+    $("marketQuery").textContent="—";
+    $("marketSourceLink").href="#";
+    $("marketQuality").textContent="";
+    $("useMedianBtn").disabled=true;
+    currentFilteredMedian=null;
+    setStatus("marketStatus","");
+  }
+
+  async function lookupMarket(){
+    const q=term();
+    if(!q)return;
+
+    setStatus("marketStatus","個別落札価格を取得して中央値を計算中…","loading");
+    $("marketQuery").textContent="検索語："+q;
+    $("useMedianBtn").disabled=true;
+    currentFilteredMedian=null;
+
+    try{
+      const r=await fetch(WORKER_URL+"?market=yahoo&q="+encodeURIComponent(q),{cache:"no-store"});
+      const d=await r.json();
+
+      if(!r.ok)throw new Error(d.error||"取得失敗");
+
+      $("marketSourceLink").href=d.sourceUrl||"#";
+      if(!d.found)throw new Error("個別落札価格を取得できませんでした");
+
+      $("marketFilteredMedian").textContent=d.filteredMedian!==null?yen(d.filteredMedian):"—";
+      $("marketQ1").textContent=d.filteredQ1!==null?yen(d.filteredQ1):"—";
+      $("marketQ3").textContent=d.filteredQ3!==null?yen(d.filteredQ3):"—";
+      $("marketFilteredCount").textContent=d.filteredCount!==null?Number(d.filteredCount).toLocaleString("ja-JP")+"件":"—";
+      $("marketRawMedian").textContent=d.rawMedian!==null?yen(d.rawMedian):"—";
+      $("marketAvg").textContent=d.avg!==null?yen(d.avg):"—";
+      $("marketMin").textContent=d.min!==null?yen(d.min):"—";
+      $("marketMax").textContent=d.max!==null?yen(d.max):"—";
+
+      const notes=[];
+      notes.push("取得 "+Number(d.sampleCount||0)+"件");
+      if(d.outlierCount>0)notes.push("外れ値 "+Number(d.outlierCount)+"件を除外");
+      if(d.sampleLimited)notes.push("全落札件数が100件超のため直近100件で算出");
+      if(d.partialMatch)notes.push("⚠ Yahoo!が部分一致検索へ拡張しています");
+      if(d.dataQuality==="high")notes.push("データ量：十分");
+      else if(d.dataQuality==="medium")notes.push("データ量：中程度");
+      else notes.push("データ量または検索精度：低め");
+      $("marketQuality").textContent=notes.join(" / ");
+
+      currentFilteredMedian=d.filteredMedian;
+      $("useMedianBtn").disabled=!(Number.isFinite(Number(currentFilteredMedian)) && !d.partialMatch);
+
+      if(d.partialMatch){
+        setStatus("marketStatus","注意：完全一致が少なく、Yahoo!が検索範囲を広げています。中央値は参考扱いにしてください。","error");
+      }else if((d.filteredCount||0)<5){
+        setStatus("marketStatus","中央値を取得しましたが、件数が少ないため参考値です。","error");
+      }else{
+        setStatus("marketStatus","外れ値を除外した中央値を取得しました。","ok");
+      }
+    }catch(e){
+      setStatus("marketStatus","相場取得エラー："+e.message,"error");
+    }
+  }
   async function lookupProduct(){const jan=$("jan").value.trim();if(!/^\d{8}$|^\d{13}$/.test(jan))return setStatus("lookupStatus","JANは8桁または13桁で入力してください","error");$("lookupBtn").disabled=true;setStatus("lookupStatus","商品情報を取得中…","loading");try{const r=await fetch(WORKER_URL+"?jan="+jan,{cache:"no-store"}),d=await r.json();if(!r.ok)throw new Error(d.error||"取得失敗");if(!d.found)throw new Error("商品が見つかりません");terms=buildTerms(d.name||"",d.brand||"");$("productNameDisplay").textContent=d.name||"商品名なし";$("productBrandDisplay").textContent=d.brand?"ブランド："+d.brand:"";$("productModelDisplay").textContent=terms.model?"推定型番："+terms.model:"推定型番：なし";$("productYahooPrice").textContent=d.yahooPrice!=null?"Yahoo!参考価格："+yen(Number(d.yahooPrice)):"";if(d.image){$("productImage").src=d.image;$("productImage").style.display="block"}else $("productImage").style.display="none";$("productBox").classList.add("show");refreshButtons();await setTermMode(terms.model?"model":terms.brandModel?"brandModel":"full",false);addHistory({jan,name:d.name||"",brand:d.brand||"",model:terms.model,image:d.image||""});setStatus("lookupStatus","商品情報を取得しました。","ok");await lookupMarket();}catch(e){setStatus("lookupStatus","取得エラー："+e.message,"error");}finally{$("lookupBtn").disabled=false;}}
   async function stopScanner(){if(scanner&&scanning){try{await scanner.stop()}catch{}try{await scanner.clear()}catch{}}scanning=false;$("scannerWrap").classList.remove("show");}
   async function decoded(txt){if(scanLocked)return;const raw=String(txt||"").replace(/\D/g,"");if(!/^\d{8}$|^\d{13}$/.test(raw))return;scanLocked=true;$("jan").value=raw;await stopScanner();await lookupProduct();setTimeout(()=>scanLocked=false,1200);}
@@ -201,6 +283,7 @@
   function renderHistory(){const h=getHistory(),box=$("historyList");if(!h.length){box.innerHTML='<div class="history-empty">まだ履歴はありません。</div>';return}box.innerHTML=h.map((x,i)=>`<div class="history-item">${x.image?`<img src="${esc(x.image)}">`:'<div class="history-placeholder">NO IMG</div>'}<div><div class="history-name">${esc(x.name)}</div><div class="history-jan">JAN: ${esc(x.jan)}</div></div><button class="history-use" data-i="${i}">呼出</button></div>`).join("");box.querySelectorAll("[data-i]").forEach(b=>b.onclick=async()=>{const x=getHistory()[Number(b.dataset.i)];$("jan").value=x.jan;await lookupProduct();window.scrollTo({top:0,behavior:"smooth"});});}
   function calc(){const n=id=>Number($(id).value)||0,b=n("buy"),s=n("sell"),sh=n("shipping"),fp=n("fee"),t=n("target");if(s<=0)return;const fa=s*fp/100,p=s-fa-sh-b,m=p/s*100,mb=s-fa-sh-t,r=mb-b;$("profit").textContent=yen(p);$("margin").textContent=m.toFixed(1)+"%";$("feeAmount").textContent=yen(fa);$("maxBuy").textContent=yen(mb);$("room").textContent=(r>=0?"+":"")+yen(r);$("judge").className="judge";if(p>=t){$("judge").textContent="🟢 仕入候補";$("judge").classList.add("good");$("judgeSub").textContent="目標利益をクリア"}else if(p>=0){$("judge").textContent="🟠 要検討";$("judge").classList.add("warn");$("judgeSub").textContent="黒字だが目標未達"}else{$("judge").textContent="🔴 見送り";$("judge").classList.add("bad");$("judgeSub").textContent="想定条件では赤字"}}
   $("scanBtn").onclick=startScanner;$("stopScanBtn").onclick=stopScanner;$("retryScanBtn").onclick=startScanner;$("lookupBtn").onclick=lookupProduct;$("refreshMarketBtn").onclick=lookupMarket;
+  $("useMedianBtn").onclick=()=>{if(Number.isFinite(Number(currentFilteredMedian))){$("sell").value=Math.round(Number(currentFilteredMedian));calc();window.scrollTo({top:document.body.scrollHeight,behavior:"smooth"});}};
   $("termFullBtn").onclick=()=>setTermMode("full");$("termBrandModelBtn").onclick=()=>setTermMode("brandModel");$("termModelBtn").onclick=()=>setTermMode("model");
   $("clearHistoryBtn").onclick=()=>{if(confirm("履歴を削除しますか？")){localStorage.removeItem(HISTORY_KEY);renderHistory();}};
   $("clearProductBtn").onclick=()=>{terms={full:"",brandModel:"",model:""};$("name").value="";$("productBox").classList.remove("show");refreshButtons();clearMarket();updateLinks();};
