@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#111827">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>仕入チェック Ver.0.2</title>
+  <style>
+    :root{
+      --bg:#f3f4f6;--card:#fff;--text:#111827;--muted:#6b7280;--line:#e5e7eb;
+      --good:#047857;--warn:#b45309;--bad:#b91c1c;--primary:#111827;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;background:var(--bg);color:var(--text);
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Sans","Yu Gothic UI","Yu Gothic",Meiryo,sans-serif;
+    }
+    main{max-width:680px;margin:auto;padding:18px 14px 40px}
+    h1{font-size:25px;margin:4px 0 3px}
+    .sub,.note{color:var(--muted);font-size:12px;line-height:1.6}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin:12px 0}
+    label{display:block;font-size:13px;font-weight:700;margin:12px 0 6px}
+    input{
+      width:100%;font-size:18px;padding:13px;border-radius:12px;border:1px solid #d1d5db;background:#fff;
+    }
+    .grid,.buttons,.metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .buttons{margin-top:12px}
+    button,a.button{
+      display:block;width:100%;padding:13px 10px;border-radius:12px;border:0;
+      font-size:15px;font-weight:700;text-decoration:none;text-align:center;cursor:pointer;
+    }
+    .primary{background:var(--primary);color:#fff}
+    .secondary{background:#e5e7eb;color:#111827}
+    .search{background:#fff;color:#111827;border:1px solid var(--line)!important}
+    .result{text-align:center;background:#f9fafb;border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:12px}
+    .judge{font-size:27px;font-weight:800}
+    .good{color:var(--good)} .warn{color:var(--warn)} .bad{color:var(--bad)}
+    .metric{border:1px solid var(--line);border-radius:14px;padding:12px;background:#fff}
+    .metric .k{font-size:12px;color:var(--muted);margin-bottom:5px}
+    .metric .v{font-size:21px;font-weight:800}
+    .wide{grid-column:1/-1}
+    .pill{font-size:11px;padding:3px 8px;border-radius:999px;background:#e5e7eb;color:#374151}
+    @media(max-width:440px){.grid,.buttons,.metrics{grid-template-columns:1fr}.wide{grid-column:auto}}
+  </style>
+</head>
+<body>
+<main>
+  <h1>仕入チェック <span class="pill">Ver.0.2</span></h1>
+  <div class="sub">Safari用・1ファイル版</div>
+
+  <section class="card">
+    <label>JANコード</label>
+    <input id="jan" inputmode="numeric" autocomplete="off" placeholder="例：4901234567890">
+
+    <label>商品名・型番（任意）</label>
+    <input id="name" autocomplete="off" placeholder="例：Panasonic EH-NA0J">
+
+    <div class="buttons">
+      <a id="mercari" class="button search" href="#">メルカリで検索</a>
+      <a id="yahooClosed" class="button search" href="#">ヤフオク落札相場</a>
+    </div>
+    <div class="buttons">
+      <a id="yahooCurrent" class="button search" href="#">ヤフオク開催中</a>
+      <button id="copyBtn" class="search" type="button">検索語をコピー</button>
+    </div>
+    <div class="note">商品名・型番が入っていればそちらを優先。空欄ならJANで検索します。</div>
+  </section>
+
+  <section class="card">
+    <div class="grid">
+      <div>
+        <label>仕入価格</label>
+        <input id="buy" type="number" inputmode="decimal" min="0" placeholder="3980">
+      </div>
+      <div>
+        <label>想定売価</label>
+        <input id="sell" type="number" inputmode="decimal" min="0" placeholder="7500">
+      </div>
+      <div>
+        <label>送料</label>
+        <input id="shipping" type="number" inputmode="decimal" min="0" value="750">
+      </div>
+      <div>
+        <label>販売手数料（%）</label>
+        <input id="fee" type="number" inputmode="decimal" min="0" max="100" step="0.1" value="10">
+      </div>
+      <div class="wide">
+        <label>目標利益</label>
+        <input id="target" type="number" inputmode="decimal" min="0" value="2000">
+      </div>
+    </div>
+
+    <div class="buttons">
+      <button id="calcBtn" class="primary" type="button">仕入判定する</button>
+      <button id="resetBtn" class="secondary" type="button">金額をリセット</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="result">
+      <div id="judge" class="judge">入力待ち</div>
+      <div id="judgeSub" class="sub">仕入価格と想定売価を入力してください</div>
+    </div>
+    <div class="metrics">
+      <div class="metric"><div class="k">想定利益</div><div id="profit" class="v">—</div></div>
+      <div class="metric"><div class="k">利益率（売価比）</div><div id="margin" class="v">—</div></div>
+      <div class="metric"><div class="k">販売手数料</div><div id="feeAmount" class="v">—</div></div>
+      <div class="metric"><div class="k">最大仕入価格</div><div id="maxBuy" class="v">—</div></div>
+      <div class="metric wide"><div class="k">最大仕入価格との差</div><div id="room" class="v">—</div></div>
+    </div>
+    <div class="note" style="margin-top:10px">
+      判定基準：想定利益が目標利益以上＝仕入候補、黒字だが目標未達＝要検討、赤字＝見送り。
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const savedIds = ["jan","name","shipping","fee","target"];
+
+  const term = () => $("name").value.trim() || $("jan").value.trim();
+
+  const updateLinks = () => {
+    const raw = term();
+    const q = encodeURIComponent(raw);
+    $("mercari").href = raw ? "https://jp.mercari.com/search?keyword=" + q : "#";
+    $("yahooClosed").href = raw ? "https://auctions.yahoo.co.jp/closedsearch/closedsearch?p=" + q : "#";
+    $("yahooCurrent").href = raw ? "https://auctions.yahoo.co.jp/search/search?p=" + q : "#";
+  };
+
+  const guard = e => {
+    if (!term()) {
+      e.preventDefault();
+      alert("JANコードか商品名を入力してください");
+    }
+  };
+
+  ["mercari","yahooClosed","yahooCurrent"].forEach(id => $(id).addEventListener("click", guard));
+
+  savedIds.forEach(id => {
+    const v = localStorage.getItem("shiire_" + id);
+    if (v !== null) $(id).value = v;
+    $(id).addEventListener("input", () => {
+      localStorage.setItem("shiire_" + id, $(id).value);
+      if (id === "jan" || id === "name") updateLinks();
+    });
+  });
+
+  const num = id => {
+    const v = parseFloat($(id).value);
+    return Number.isFinite(v) ? v : 0;
+  };
+  const yen = x => Number.isFinite(x) ? Math.round(x).toLocaleString("ja-JP") + "円" : "—";
+
+  const empty = () => {
+    $("judge").textContent = "入力待ち";
+    $("judge").className = "judge";
+    $("judgeSub").textContent = "仕入価格と想定売価を入力してください";
+    ["profit","margin","feeAmount","maxBuy","room"].forEach(id => $(id).textContent = "—");
+  };
+
+  const calculate = () => {
+    const buy = num("buy"), sell = num("sell"), shipping = num("shipping"), feePct = num("fee"), target = num("target");
+    if (sell <= 0) return empty();
+
+    const feeAmount = sell * feePct / 100;
+    const profit = sell - feeAmount - shipping - buy;
+    const margin = profit / sell * 100;
+    const maxBuy = sell - feeAmount - shipping - target;
+    const room = maxBuy - buy;
+
+    $("profit").textContent = yen(profit);
+    $("margin").textContent = margin.toFixed(1) + "%";
+    $("feeAmount").textContent = yen(feeAmount);
+    $("maxBuy").textContent = yen(maxBuy);
+    $("room").textContent = (room >= 0 ? "+" : "") + yen(room);
+
+    $("judge").className = "judge";
+    if (profit >= target) {
+      $("judge").textContent = "🟢 仕入候補";
+      $("judge").classList.add("good");
+      $("judgeSub").textContent = "目標利益をクリア";
+    } else if (profit >= 0) {
+      $("judge").textContent = "🟠 要検討";
+      $("judge").classList.add("warn");
+      $("judgeSub").textContent = "黒字ですが目標利益には未達";
+    } else {
+      $("judge").textContent = "🔴 見送り";
+      $("judge").classList.add("bad");
+      $("judgeSub").textContent = "想定条件では赤字";
+    }
+  };
+
+  $("calcBtn").addEventListener("click", calculate);
+  $("resetBtn").addEventListener("click", () => { $("buy").value = ""; $("sell").value = ""; empty(); });
+  ["buy","sell","shipping","fee","target"].forEach(id => $(id).addEventListener("input", calculate));
+
+  $("copyBtn").addEventListener("click", async () => {
+    const q = term();
+    if (!q) return alert("JANコードか商品名を入力してください");
+    try {
+      await navigator.clipboard.writeText(q);
+      alert("検索語をコピーしました");
+    } catch {
+      prompt("この検索語をコピーしてください", q);
+    }
+  });
+
+  updateLinks();
+})();
+</script>
+</body>
+</html>
