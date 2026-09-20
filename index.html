@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#111827">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <title>仕入チェック Ver.5</title>
+  <title>仕入チェック Ver.5.1</title>
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <style>
     :root {
@@ -65,6 +65,16 @@
     .history-empty{font-size:12px;color:var(--muted);padding:8px 0} .history-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
     .history-clear{width:auto!important;padding:7px 10px!important;font-size:11px!important;background:#f3f4f6;color:#6b7280;border:1px solid var(--line)!important}
 
+
+    .confidence-box{margin-top:10px;border:1px solid var(--line);border-radius:13px;padding:11px;background:#fff}
+    .confidence-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .confidence-label{font-size:11px;color:var(--muted);font-weight:700}
+    .confidence-badge{font-size:12px;font-weight:900;padding:5px 9px;border-radius:999px;white-space:nowrap}
+    .confidence-badge.high{background:#d1fae5;color:#065f46}
+    .confidence-badge.medium{background:#fef3c7;color:#92400e}
+    .confidence-badge.reference{background:#ffedd5;color:#9a3412}
+    .confidence-badge.low{background:#fee2e2;color:#991b1b}
+    .confidence-reason{font-size:11px;color:var(--muted);line-height:1.5;margin-top:7px}
     .strategy-card{margin-top:12px;border:1px solid var(--line);border-radius:16px;padding:13px;background:#fff}
     .strategy-title{font-size:13px;font-weight:800;margin-bottom:9px}
     .strategy-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
@@ -87,8 +97,8 @@
 </head>
 <body>
 <main>
-  <h1>仕入チェック <span class="pill">Ver.5</span></h1>
-  <div class="sub">3段階売価＋自動仕入判定</div>
+  <h1>仕入チェック <span class="pill">Ver.5.1</span></h1>
+  <div class="sub">3段階売価＋信頼度つき自動仕入判定</div>
 
   <section class="card">
     <div class="buttons">
@@ -167,6 +177,14 @@
 
       <div id="marketQuality" class="market-note" style="font-size:12px;margin-top:10px;"></div>
 
+      <div class="confidence-box">
+        <div class="confidence-row">
+          <div class="confidence-label">相場データ信頼度</div>
+          <div id="confidenceBadge" class="confidence-badge low">未取得</div>
+        </div>
+        <div id="confidenceReason" class="confidence-reason">商品相場を取得すると判定します。</div>
+      </div>
+
       <div class="strategy-card">
         <div class="strategy-title">3段階の想定売価</div>
         <div class="strategy-grid">
@@ -242,7 +260,7 @@
       <div id="autoJudgeReason" class="reason">商品相場と仕入価格が揃うと自動判定します。</div>
     </div>
     <div class="decision-note">
-      判定は入力した「目標利益」を基準にします。安全売価でも目標利益達成＝強い仕入候補、中央値で達成＝仕入候補、中央値で黒字だが目標未達＝要検討、中央値で赤字＝見送り。
+      判定は入力した「目標利益」を基準にします。部分一致でも判定と価格設定は使えますが、信頼度表示を確認してください。安全売価でも目標利益達成＝強い仕入候補、中央値で達成＝仕入候補、中央値で黒字だが目標未達＝要検討、中央値で赤字＝見送り。
     </div>
   </section>
 
@@ -262,7 +280,7 @@
 <script>
 (() => {
   const WORKER_URL="https://shiire-check-api.7twfc7rt87.workers.dev/", HISTORY_KEY="shiire_history_v3", $=id=>document.getElementById(id);
-  let scanner=null, scanning=false, scanLocked=false, terms={full:"",brandModel:"",model:""}, activeTermMode="full", currentFilteredMedian=null, currentSafePrice=null, currentAggressivePrice=null, currentMarketPartial=false, currentMarketCount=0;
+  let scanner=null, scanning=false, scanLocked=false, terms={full:"",brandModel:"",model:""}, activeTermMode="full", currentFilteredMedian=null, currentSafePrice=null, currentAggressivePrice=null, currentMarketPartial=false, currentMarketCount=0, currentConfidence="low", currentConfidenceLabel="未取得";
   const term=()=>$("name").value.trim()||$("jan").value.trim(), norm=s=>String(s||"").replace(/[\s　]+/g," ").trim(), yen=n=>Number.isFinite(n)?Math.round(n).toLocaleString("ja-JP")+"円":"—";
 
   function cleanName(raw){let s=norm(raw);["送料無料","送料込み","即納","新品","未使用","正規品","公式","限定","ポイント","最安値","あすつく","翌日発送","在庫あり"].forEach(w=>s=s.replace(new RegExp(w,"gi")," "));return norm(s.replace(/[【】\[\]〈〉<>｜|]/g," "));}
@@ -272,6 +290,53 @@
   function setStatus(id,msg,type=""){$ (id).textContent=msg;$ (id).className="status"+(type?" "+type:"");}
   function refreshButtons(){$("termFullBtn").disabled=!terms.full;$("termBrandModelBtn").disabled=!terms.brandModel;$("termModelBtn").disabled=!terms.model;}
   async function setTermMode(mode,fetchMarket=true){if(!terms[mode])return;activeTermMode=mode;$("name").value=terms[mode];["termFullBtn","termBrandModelBtn","termModelBtn"].forEach(id=>$(id).classList.remove("active"));$({full:"termFullBtn",brandModel:"termBrandModelBtn",model:"termModelBtn"}[mode]).classList.add("active");$("termHint").textContent={full:"商品名ベース",brandModel:"ブランド＋型番",model:"型番のみ（同一商品比較向き）"}[mode];updateLinks();if(fetchMarket)await lookupMarket();}
+  function updateConfidence(){
+    const badge=$("confidenceBadge");
+    const reason=$("confidenceReason");
+
+    badge.className="confidence-badge";
+
+    if(currentMarketPartial){
+      currentConfidence="reference";
+      currentConfidenceLabel="🟠 参考値";
+      badge.classList.add("reference");
+      badge.textContent=currentConfidenceLabel;
+      reason.textContent="Yahoo!が検索語を部分一致へ広げています。別商品が混ざる可能性があるため、中央値は参考扱いです。";
+      return;
+    }
+
+    if(currentMarketCount<=4){
+      currentConfidence="low";
+      currentConfidenceLabel="🔴 要確認";
+      badge.classList.add("low");
+      badge.textContent=currentConfidenceLabel;
+      reason.textContent="有効件数が4件以下です。相場データが少ないため、元ページも確認してください。";
+      return;
+    }
+
+    if(activeTermMode==="model" && currentMarketCount>=20){
+      currentConfidence="high";
+      currentConfidenceLabel="🟢 高信頼";
+      badge.classList.add("high");
+      badge.textContent=currentConfidenceLabel;
+      reason.textContent="型番検索で有効件数20件以上。今回の条件では比較的信頼しやすい相場です。";
+      return;
+    }
+
+    currentConfidence="medium";
+    currentConfidenceLabel="🟡 中信頼";
+    badge.classList.add("medium");
+    badge.textContent=currentConfidenceLabel;
+
+    if(activeTermMode==="model"){
+      reason.textContent="型番検索ですが、有効件数は5〜19件です。実用的な参考値ですが、件数は多くありません。";
+    }else if(currentMarketCount>=20){
+      reason.textContent="件数は十分ありますが、商品名検索のため別仕様・セット品などが混ざる可能性があります。";
+    }else{
+      reason.textContent="一定の相場データがあります。商品名やブランド検索では表記違い・別仕様の混入に注意してください。";
+    }
+  }
+
   function clearMarket(){
     ["marketFilteredMedian","marketQ1","marketQ3","marketFilteredCount","marketRawMedian","marketAvg","marketMin","marketMax",
      "safePrice","standardPrice","aggressivePrice"]
@@ -285,6 +350,11 @@
     currentAggressivePrice=null;
     currentMarketPartial=false;
     currentMarketCount=0;
+    currentConfidence="low";
+    currentConfidenceLabel="未取得";
+    $("confidenceBadge").className="confidence-badge low";
+    $("confidenceBadge").textContent="未取得";
+    $("confidenceReason").textContent="商品相場を取得すると判定します。";
     setStatus("marketStatus","");
     updateAutoDecision();
   }
@@ -342,15 +412,16 @@
       $("standardPrice").textContent=d.filteredMedian!==null?yen(d.filteredMedian):"—";
       $("aggressivePrice").textContent=d.filteredQ3!==null?yen(d.filteredQ3):"—";
 
-      const canUse=!d.partialMatch;
-      $("useSafeBtn").disabled=!(Number.isFinite(Number(currentSafePrice)) && canUse);
-      $("useMedianBtn").disabled=!(Number.isFinite(Number(currentFilteredMedian)) && canUse);
-      $("useAggressiveBtn").disabled=!(Number.isFinite(Number(currentAggressivePrice)) && canUse);
+      // 価格が取得できていれば、部分一致でもユーザー判断で設定可能
+      $("useSafeBtn").disabled=!Number.isFinite(Number(currentSafePrice));
+      $("useMedianBtn").disabled=!Number.isFinite(Number(currentFilteredMedian));
+      $("useAggressiveBtn").disabled=!Number.isFinite(Number(currentAggressivePrice));
 
+      updateConfidence();
       updateAutoDecision();
 
       if(d.partialMatch){
-        setStatus("marketStatus","注意：完全一致が少なく、Yahoo!が検索範囲を広げています。中央値は参考扱いにしてください。","error");
+        setStatus("marketStatus","Yahoo!が検索範囲を広げています。価格設定は可能ですが、信頼度は「参考値」です。","error");
       }else if((d.filteredCount||0)<5){
         setStatus("marketStatus","中央値を取得しましたが、件数が少ないため参考値です。","error");
       }else{
@@ -399,12 +470,6 @@
     const box=$("autoJudge");
     box.className="auto-judge neutral";
 
-    if(currentMarketPartial){
-      $("autoJudgeMain").textContent="⚠ 自動判定保留";
-      $("autoJudgeReason").textContent="Yahoo!が部分一致検索へ広げているため、別商品の混入リスクがあります。検索語を調整してください。";
-      return;
-    }
-
     if(!Number.isFinite(Number(currentFilteredMedian))){
       $("autoJudgeMain").textContent="相場データ待ち";
       $("autoJudgeReason").textContent="商品相場を取得すると自動判定します。";
@@ -417,7 +482,14 @@
       return;
     }
 
-    const dataWarning=currentMarketCount<5 ? " ※有効件数が少ないため参考判定です。" : "";
+    let dataWarning="";
+    if(currentMarketPartial){
+      dataWarning=" ※部分一致検索のため参考判定です。";
+    }else if(currentMarketCount<5){
+      dataWarning=" ※有効件数が少ないため参考判定です。";
+    }else{
+      dataWarning=" ※相場信頼度："+currentConfidenceLabel+"。";
+    }
 
     if(safeP!==null && safeP>=target){
       box.classList.add("good");
@@ -463,7 +535,7 @@
   $("clearProductBtn").onclick=()=>{terms={full:"",brandModel:"",model:""};$("name").value="";$("productBox").classList.remove("show");refreshButtons();clearMarket();updateLinks();};
   $("calcBtn").onclick=calc;["buy","sell","shipping","fee","target"].forEach(id=>$(id).oninput=calc);$("name").oninput=updateLinks;
   $("barcodeFile").onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{const fs=new Html5Qrcode("reader");$("scannerWrap").classList.add("show");const txt=await fs.scanFile(f,true);try{await fs.clear()}catch{}$("scannerWrap").classList.remove("show");await decoded(txt);}catch{setStatus("scanStatus","画像から読み取れませんでした","error")}e.target.value="";};
-  refreshButtons();renderHistory();updateLinks();updateAutoDecision();
+  refreshButtons();renderHistory();updateLinks();updateConfidence();updateAutoDecision();
 })();
 </script>
 </body>
