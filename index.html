@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#111827">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <title>仕入チェック Ver.2</title>
+  <title>仕入チェック Ver.2.1</title>
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <style>
     :root {
@@ -20,6 +20,7 @@
     }
     main{max-width:680px;margin:auto;padding:18px 14px 40px}
     h1{font-size:25px;margin:4px 0 3px}
+    h2{font-size:17px;margin:0 0 10px}
     .sub,.note{color:var(--muted);font-size:12px;line-height:1.6}
     .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin:12px 0}
     label{display:block;font-size:13px;font-weight:700;margin:12px 0 6px}
@@ -32,7 +33,7 @@
       display:block;width:100%;padding:13px 10px;border-radius:12px;border:0;
       font-size:15px;font-weight:700;text-decoration:none;text-align:center;cursor:pointer;
     }
-    button:disabled{opacity:.55;cursor:default}
+    button:disabled{opacity:.45;cursor:default}
     .primary{background:var(--primary);color:#fff}
     .lookup{background:var(--blue);color:#fff}
     .scannerBtn{background:#111827;color:#fff}
@@ -67,17 +68,42 @@
       text-align:center;margin:0;cursor:pointer;
     }
     #barcodeFile{display:none}
+    .term-switch{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0 4px}
+    .term-switch button{
+      padding:10px 7px;background:#f9fafb;color:#374151;border:1px solid var(--line);
+      font-size:12px;
+    }
+    .term-switch button.active{background:#111827;color:#fff;border-color:#111827}
+    .term-hint{font-size:11px;color:var(--muted);min-height:17px;margin-top:5px}
+    .history-list{display:grid;gap:8px}
+    .history-item{
+      display:grid;grid-template-columns:54px 1fr auto;gap:10px;align-items:center;
+      border:1px solid var(--line);border-radius:13px;padding:8px;background:#fff;
+    }
+    .history-item img{
+      width:54px;height:54px;object-fit:contain;border-radius:9px;border:1px solid var(--line);background:#fff;
+    }
+    .history-placeholder{width:54px;height:54px;border-radius:9px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:11px;color:#9ca3af}
+    .history-name{font-size:12px;font-weight:700;line-height:1.35}
+    .history-jan{font-size:10px;color:var(--muted);margin-top:3px}
+    .history-use{padding:9px 10px!important;font-size:12px!important;background:#e5e7eb;color:#111827}
+    .history-empty{font-size:12px;color:var(--muted);padding:8px 0}
+    .history-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+    .history-clear{width:auto!important;padding:7px 10px!important;font-size:11px!important;background:#f3f4f6;color:#6b7280;border:1px solid var(--line)!important}
     @media(max-width:440px){
       .grid,.buttons,.metrics,.scanner-controls{grid-template-columns:1fr}
       .wide{grid-column:auto}
       .product img{width:90px;height:90px}
+      .term-switch{grid-template-columns:1fr 1fr 1fr}
+      .history-item{grid-template-columns:48px 1fr auto}
+      .history-item img,.history-placeholder{width:48px;height:48px}
     }
   </style>
 </head>
 <body>
 <main>
-  <h1>仕入チェック <span class="pill">Ver.2</span></h1>
-  <div class="sub">カメラでバーコード読取 → 商品情報を自動取得</div>
+  <h1>仕入チェック <span class="pill">Ver.2.1</span></h1>
+  <div class="sub">検索語最適化＋直近10件の履歴</div>
 
   <section class="card">
     <div class="buttons">
@@ -113,6 +139,7 @@
         <div id="productNameDisplay" class="product-name"></div>
         <div class="product-meta">
           <div id="productBrandDisplay"></div>
+          <div id="productModelDisplay"></div>
           <div id="productYahooPrice"></div>
           <div id="productHitCount"></div>
         </div>
@@ -120,7 +147,15 @@
     </div>
 
     <label>検索に使う商品名・型番</label>
+
+    <div class="term-switch">
+      <button id="termFullBtn" type="button">商品名</button>
+      <button id="termBrandModelBtn" type="button">ブランド＋型番</button>
+      <button id="termModelBtn" type="button">型番のみ</button>
+    </div>
+
     <input id="name" autocomplete="off" placeholder="JAN取得後に自動入力／手入力も可">
+    <div id="termHint" class="term-hint"></div>
 
     <div class="buttons">
       <a id="mercari" class="button search" href="#">メルカリで検索</a>
@@ -132,8 +167,16 @@
     </div>
 
     <div class="note">
-      商品取得後は商品名を検索語へ自動セットします。検索結果が広すぎる場合は、型番だけ残すなど手動修正できます。
+      型番が自動抽出できた商品では「型番のみ」が相場確認に強いことがあります。検索結果が少ない場合は「商品名」に戻してください。
     </div>
+  </section>
+
+  <section class="card">
+    <div class="history-head">
+      <h2>最近読み取った商品</h2>
+      <button id="clearHistoryBtn" class="history-clear" type="button">履歴を削除</button>
+    </div>
+    <div id="historyList" class="history-list"></div>
   </section>
 
   <section class="card">
@@ -187,14 +230,107 @@
 <script>
 (() => {
   const WORKER_URL = "https://shiire-check-api.7twfc7rt87.workers.dev/";
+  const HISTORY_KEY = "shiire_history_v21";
   const $ = id => document.getElementById(id);
 
   let scanner = null;
   let scanning = false;
   let scanLocked = false;
+  let terms = { full:"", brandModel:"", model:"" };
+  let activeTermMode = "full";
 
   const savedIds = ["jan","name","shipping","fee","target"];
   const term = () => $("name").value.trim() || $("jan").value.trim();
+
+  const normalizeSpaces = s => String(s || "").replace(/[\s　]+/g, " ").trim();
+
+  const cleanProductName = raw => {
+    let s = normalizeSpaces(raw);
+    const noise = [
+      "送料無料","送料込み","即納","新品","未使用","正規品","公式","限定",
+      "ポイント","最安値","あすつく","翌日発送","在庫あり","お買い得"
+    ];
+    noise.forEach(w => {
+      s = s.replace(new RegExp(w, "gi"), " ");
+    });
+    s = s.replace(/[【】\[\]〈〉<>]/g, " ");
+    s = s.replace(/[｜|]/g, " ");
+    return normalizeSpaces(s);
+  };
+
+  const extractModel = raw => {
+    const s = normalizeSpaces(raw).toUpperCase();
+
+    // 型番らしい候補: 英字と数字を両方含み、4文字以上。
+    const tokens = s.match(/[A-Z0-9][A-Z0-9._\/\-]{3,}/g) || [];
+
+    const filtered = tokens.filter(t => {
+      if (!/[A-Z]/.test(t) || !/\d/.test(t)) return false;
+      if (/^\d{8,14}$/.test(t)) return false;      // JANなど
+      if (/^\d+(ML|L|G|KG|CM|MM|W|V)$/.test(t)) return false;
+      if (/^(USB|HDMI|WIFI|BLUETOOTH)\d*$/.test(t)) return false;
+      return true;
+    });
+
+    if (!filtered.length) return "";
+
+    // ハイフンを含む・長い・数字と英字の切替が多い候補を優先
+    const score = t => {
+      let sc = t.length;
+      if (t.includes("-")) sc += 4;
+      if (t.includes("_")) sc += 2;
+      if (/[A-Z]{2,}/.test(t)) sc += 1;
+      if (/\d{2,}/.test(t)) sc += 1;
+      return sc;
+    };
+
+    filtered.sort((a,b) => score(b) - score(a));
+    return filtered[0];
+  };
+
+  const buildTerms = (name, brand) => {
+    const full = cleanProductName(name);
+    const model = extractModel(name);
+    const brandClean = cleanProductName(brand);
+
+    let brandModel = "";
+    if (model && brandClean) {
+      brandModel = normalizeSpaces(brandClean + " " + model);
+    } else if (model) {
+      brandModel = model;
+    }
+
+    return { full, brandModel, model };
+  };
+
+  const setTermMode = mode => {
+    if (!terms[mode]) return;
+    activeTermMode = mode;
+    $("name").value = terms[mode];
+    localStorage.setItem("shiire_name", terms[mode]);
+    updateLinks();
+
+    ["termFullBtn","termBrandModelBtn","termModelBtn"].forEach(id => $(id).classList.remove("active"));
+    const map = {
+      full:"termFullBtn",
+      brandModel:"termBrandModelBtn",
+      model:"termModelBtn"
+    };
+    $(map[mode]).classList.add("active");
+
+    const hint = {
+      full:"商品名ベースで検索",
+      brandModel:"ブランド名＋型番で検索",
+      model:"型番だけで検索（同一商品の比較向き）"
+    };
+    $("termHint").textContent = hint[mode] || "";
+  };
+
+  const refreshTermButtons = () => {
+    $("termFullBtn").disabled = !terms.full;
+    $("termBrandModelBtn").disabled = !terms.brandModel;
+    $("termModelBtn").disabled = !terms.model;
+  };
 
   const setScanStatus = (msg, type="") => {
     $("scanStatus").textContent = msg;
@@ -237,9 +373,107 @@
     $("productImage").removeAttribute("src");
     $("productNameDisplay").textContent = "";
     $("productBrandDisplay").textContent = "";
+    $("productModelDisplay").textContent = "";
     $("productYahooPrice").textContent = "";
     $("productHitCount").textContent = "";
+    terms = { full:"", brandModel:"", model:"" };
+    refreshTermButtons();
+    $("termHint").textContent = "";
+    ["termFullBtn","termBrandModelBtn","termModelBtn"].forEach(id => $(id).classList.remove("active"));
     setLookupStatus("");
+  };
+
+  const loadHistory = () => {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const saveHistory = history => {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0,10)));
+  };
+
+  const addHistory = item => {
+    let history = loadHistory().filter(x => x.jan !== item.jan);
+    history.unshift(item);
+    saveHistory(history);
+    renderHistory();
+  };
+
+  const escapeHtml = s => String(s || "")
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+
+  const renderHistory = () => {
+    const history = loadHistory();
+    const box = $("historyList");
+
+    if (!history.length) {
+      box.innerHTML = '<div class="history-empty">まだ履歴はありません。</div>';
+      return;
+    }
+
+    box.innerHTML = history.map((item, idx) => {
+      const img = item.image
+        ? `<img src="${escapeHtml(item.image)}" alt="">`
+        : `<div class="history-placeholder">NO IMG</div>`;
+      return `
+        <div class="history-item">
+          ${img}
+          <div>
+            <div class="history-name">${escapeHtml(item.name || "商品名なし")}</div>
+            <div class="history-jan">JAN: ${escapeHtml(item.jan || "")}</div>
+          </div>
+          <button class="history-use" type="button" data-history-index="${idx}">呼出</button>
+        </div>`;
+    }).join("");
+
+    box.querySelectorAll("[data-history-index]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const i = Number(btn.dataset.historyIndex);
+        const item = loadHistory()[i];
+        if (!item) return;
+
+        $("jan").value = item.jan || "";
+        localStorage.setItem("shiire_jan", item.jan || "");
+
+        $("productNameDisplay").textContent = item.name || "商品名なし";
+        $("productBrandDisplay").textContent = item.brand ? "ブランド：" + item.brand : "";
+        $("productModelDisplay").textContent = item.model ? "推定型番：" + item.model : "推定型番：見つかりませんでした";
+        $("productYahooPrice").textContent = item.yahooPrice !== null && item.yahooPrice !== undefined
+          ? "Yahoo!参考価格：" + Number(item.yahooPrice).toLocaleString("ja-JP") + "円"
+          : "";
+        $("productHitCount").textContent = item.hitCount !== null && item.hitCount !== undefined
+          ? "JAN一致候補：" + item.hitCount + "件"
+          : "";
+
+        if (item.image) {
+          $("productImage").src = item.image;
+          $("productImage").style.display = "block";
+        } else {
+          $("productImage").style.display = "none";
+        }
+
+        $("productBox").classList.add("show");
+        terms = {
+          full:item.termFull || cleanProductName(item.name || ""),
+          brandModel:item.termBrandModel || "",
+          model:item.model || ""
+        };
+        refreshTermButtons();
+
+        if (terms.model) setTermMode("model");
+        else if (terms.brandModel) setTermMode("brandModel");
+        else setTermMode("full");
+
+        setLookupStatus("履歴から商品情報を呼び出しました。", "ok");
+        updateLinks();
+        window.scrollTo({top:0,behavior:"smooth"});
+      });
+    });
   };
 
   const lookupProduct = async () => {
@@ -279,9 +513,14 @@
 
       const productName = (data.name || "").trim();
       const brand = (data.brand || "").trim();
+      const image = data.image || "";
+      terms = buildTerms(productName, brand);
 
       $("productNameDisplay").textContent = productName || "商品名なし";
       $("productBrandDisplay").textContent = brand ? "ブランド：" + brand : "";
+      $("productModelDisplay").textContent = terms.model
+        ? "推定型番：" + terms.model
+        : "推定型番：見つかりませんでした";
       $("productYahooPrice").textContent =
         data.yahooPrice !== null && data.yahooPrice !== undefined
           ? "Yahoo!参考価格：" + Number(data.yahooPrice).toLocaleString("ja-JP") + "円"
@@ -291,22 +530,41 @@
           ? "JAN一致候補：" + data.hitCount + "件"
           : "";
 
-      if (data.image) {
-        $("productImage").src = data.image;
+      if (image) {
+        $("productImage").src = image;
         $("productImage").style.display = "block";
       } else {
         $("productImage").style.display = "none";
       }
 
       $("productBox").classList.add("show");
+      refreshTermButtons();
 
-      if (productName) {
-        $("name").value = productName;
-        localStorage.setItem("shiire_name", productName);
+      // 型番が取れたら相場検索向けに型番のみを初期選択。
+      // 取れなければ商品名を使用。
+      if (terms.model) {
+        setTermMode("model");
+      } else if (terms.brandModel) {
+        setTermMode("brandModel");
+      } else {
+        setTermMode("full");
       }
 
+      addHistory({
+        jan,
+        name: productName,
+        brand,
+        model: terms.model,
+        termFull: terms.full,
+        termBrandModel: terms.brandModel,
+        image,
+        yahooPrice: data.yahooPrice ?? null,
+        hitCount: data.hitCount ?? null,
+        savedAt: Date.now()
+      });
+
       updateLinks();
-      setLookupStatus("商品情報を取得しました。下の検索ボタンで相場を確認できます。", "ok");
+      setLookupStatus("商品情報を取得しました。検索語を切り替えて相場を確認できます。", "ok");
     } catch (err) {
       clearProduct();
       setLookupStatus("取得エラー：" + (err.message || "通信に失敗しました"), "error");
@@ -321,12 +579,8 @@
       $("scannerWrap").classList.remove("show");
       return;
     }
-    try {
-      await scanner.stop();
-    } catch (e) {}
-    try {
-      await scanner.clear();
-    } catch (e) {}
+    try { await scanner.stop(); } catch (e) {}
+    try { await scanner.clear(); } catch (e) {}
     scanning = false;
     $("scannerWrap").classList.remove("show");
   };
@@ -349,9 +603,7 @@
     await stopScanner();
     await lookupProduct();
 
-    window.setTimeout(() => {
-      scanLocked = false;
-    }, 1200);
+    window.setTimeout(() => { scanLocked = false; }, 1200);
   };
 
   const startScanner = async () => {
@@ -369,11 +621,7 @@
       scanner = new Html5Qrcode("reader");
       await scanner.start(
         { facingMode: "environment" },
-        {
-          fps: 12,
-          qrbox: { width: 290, height: 150 },
-          aspectRatio: 1.777778
-        },
+        { fps: 12, qrbox: { width: 290, height: 150 }, aspectRatio: 1.777778 },
         handleDecoded,
         () => {}
       );
@@ -423,6 +671,10 @@
     }
   });
 
+  $("termFullBtn").addEventListener("click", () => setTermMode("full"));
+  $("termBrandModelBtn").addEventListener("click", () => setTermMode("brandModel"));
+  $("termModelBtn").addEventListener("click", () => setTermMode("model"));
+
   $("lookupBtn").addEventListener("click", lookupProduct);
 
   $("clearProductBtn").addEventListener("click", () => {
@@ -430,6 +682,13 @@
     $("name").value = "";
     localStorage.removeItem("shiire_name");
     updateLinks();
+  });
+
+  $("clearHistoryBtn").addEventListener("click", () => {
+    if (confirm("最近読み取った商品の履歴を削除しますか？")) {
+      localStorage.removeItem(HISTORY_KEY);
+      renderHistory();
+    }
   });
 
   $("jan").addEventListener("keydown", e => {
@@ -504,11 +763,11 @@
   });
 
   window.addEventListener("pagehide", () => {
-    if (scanner && scanning) {
-      scanner.stop().catch(() => {});
-    }
+    if (scanner && scanning) scanner.stop().catch(() => {});
   });
 
+  refreshTermButtons();
+  renderHistory();
   updateLinks();
 })();
 </script>
