@@ -6,9 +6,10 @@
   <meta name="theme-color" content="#111827">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <title>仕入チェック Ver.1</title>
+  <title>仕入チェック Ver.2</title>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <style>
-    :root{
+    :root {
       --bg:#f3f4f6;--card:#fff;--text:#111827;--muted:#6b7280;--line:#e5e7eb;
       --good:#047857;--warn:#b45309;--bad:#b91c1c;--primary:#111827;--blue:#1d4ed8;
     }
@@ -31,10 +32,13 @@
       display:block;width:100%;padding:13px 10px;border-radius:12px;border:0;
       font-size:15px;font-weight:700;text-decoration:none;text-align:center;cursor:pointer;
     }
+    button:disabled{opacity:.55;cursor:default}
     .primary{background:var(--primary);color:#fff}
     .lookup{background:var(--blue);color:#fff}
+    .scannerBtn{background:#111827;color:#fff}
     .secondary{background:#e5e7eb;color:#111827}
     .search{background:#fff;color:#111827;border:1px solid var(--line)!important}
+    .danger{background:#fee2e2;color:#991b1b}
     .result{text-align:center;background:#f9fafb;border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:12px}
     .judge{font-size:27px;font-weight:800}
     .good{color:var(--good)} .warn{color:var(--warn)} .bad{color:var(--bad)}
@@ -51,8 +55,20 @@
     .product-meta{font-size:12px;color:var(--muted);line-height:1.65}
     .status{font-size:13px;margin-top:10px;min-height:20px}
     .status.loading{color:var(--blue)} .status.error{color:var(--bad)} .status.ok{color:var(--good)}
+    .scanner-wrap{display:none;margin-top:12px}
+    .scanner-wrap.show{display:block}
+    #reader{width:100%;overflow:hidden;border-radius:14px;background:#111}
+    #reader video{border-radius:14px}
+    .scan-guide{font-size:12px;color:var(--muted);line-height:1.5;margin:8px 2px}
+    .scanner-controls{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+    .file-label{
+      display:block;width:100%;padding:13px 10px;border-radius:12px;
+      border:1px solid var(--line);background:#fff;font-size:15px;font-weight:700;
+      text-align:center;margin:0;cursor:pointer;
+    }
+    #barcodeFile{display:none}
     @media(max-width:440px){
-      .grid,.buttons,.metrics{grid-template-columns:1fr}
+      .grid,.buttons,.metrics,.scanner-controls{grid-template-columns:1fr}
       .wide{grid-column:auto}
       .product img{width:90px;height:90px}
     }
@@ -60,10 +76,27 @@
 </head>
 <body>
 <main>
-  <h1>仕入チェック <span class="pill">Ver.1</span></h1>
-  <div class="sub">JANから商品情報を自動取得</div>
+  <h1>仕入チェック <span class="pill">Ver.2</span></h1>
+  <div class="sub">カメラでバーコード読取 → 商品情報を自動取得</div>
 
   <section class="card">
+    <div class="buttons">
+      <button id="scanBtn" class="scannerBtn" type="button">📷 バーコードを読み取る</button>
+      <label class="file-label" for="barcodeFile">🖼️ 写真から読み取る</label>
+      <input id="barcodeFile" type="file" accept="image/*">
+    </div>
+
+    <div id="scannerWrap" class="scanner-wrap">
+      <div id="reader"></div>
+      <div class="scan-guide">バーコード全体が枠内に入るように近づけてください。読み取ると自動でカメラを停止して商品検索します。</div>
+      <div class="scanner-controls">
+        <button id="stopScanBtn" class="danger" type="button">カメラを閉じる</button>
+        <button id="retryScanBtn" class="secondary" type="button">再読み取り</button>
+      </div>
+    </div>
+
+    <div id="scanStatus" class="status"></div>
+
     <label>JANコード</label>
     <input id="jan" inputmode="numeric" autocomplete="off" placeholder="例：4901001212767" maxlength="13">
 
@@ -97,6 +130,7 @@
       <a id="yahooCurrent" class="button search" href="#">ヤフオク開催中</a>
       <button id="copyBtn" class="search" type="button">検索語をコピー</button>
     </div>
+
     <div class="note">
       商品取得後は商品名を検索語へ自動セットします。検索結果が広すぎる場合は、型番だけ残すなど手動修正できます。
     </div>
@@ -154,9 +188,18 @@
 (() => {
   const WORKER_URL = "https://shiire-check-api.7twfc7rt87.workers.dev/";
   const $ = id => document.getElementById(id);
-  const savedIds = ["jan","name","shipping","fee","target"];
 
+  let scanner = null;
+  let scanning = false;
+  let scanLocked = false;
+
+  const savedIds = ["jan","name","shipping","fee","target"];
   const term = () => $("name").value.trim() || $("jan").value.trim();
+
+  const setScanStatus = (msg, type="") => {
+    $("scanStatus").textContent = msg;
+    $("scanStatus").className = "status" + (type ? " " + type : "");
+  };
 
   const updateLinks = () => {
     const raw = term();
@@ -273,7 +316,115 @@
     }
   };
 
+  const stopScanner = async () => {
+    if (!scanner || !scanning) {
+      $("scannerWrap").classList.remove("show");
+      return;
+    }
+    try {
+      await scanner.stop();
+    } catch (e) {}
+    try {
+      await scanner.clear();
+    } catch (e) {}
+    scanning = false;
+    $("scannerWrap").classList.remove("show");
+  };
+
+  const handleDecoded = async decodedText => {
+    if (scanLocked) return;
+    const raw = String(decodedText || "").replace(/\D/g, "");
+
+    if (!/^\d{8}$|^\d{13}$/.test(raw)) {
+      setScanStatus("JAN以外のコードを検出しました。バーコードをもう一度合わせてください。", "error");
+      return;
+    }
+
+    scanLocked = true;
+    $("jan").value = raw;
+    localStorage.setItem("shiire_jan", raw);
+    updateLinks();
+    setScanStatus("JAN " + raw + " を読み取りました。商品情報を取得します…", "ok");
+
+    await stopScanner();
+    await lookupProduct();
+
+    window.setTimeout(() => {
+      scanLocked = false;
+    }, 1200);
+  };
+
+  const startScanner = async () => {
+    if (typeof Html5Qrcode === "undefined") {
+      setScanStatus("バーコード読取ライブラリを読み込めませんでした。通信状態を確認してください。", "error");
+      return;
+    }
+
+    await stopScanner();
+    $("scannerWrap").classList.add("show");
+    setScanStatus("カメラを起動しています…", "loading");
+    scanLocked = false;
+
+    try {
+      scanner = new Html5Qrcode("reader");
+      await scanner.start(
+        { facingMode: "environment" },
+        {
+          fps: 12,
+          qrbox: { width: 290, height: 150 },
+          aspectRatio: 1.777778
+        },
+        handleDecoded,
+        () => {}
+      );
+      scanning = true;
+      setScanStatus("バーコードにカメラを合わせてください。", "loading");
+    } catch (err) {
+      scanning = false;
+      $("scannerWrap").classList.remove("show");
+      setScanStatus(
+        "カメラを起動できませんでした。Safariのカメラ許可を確認するか、「写真から読み取る」を使ってください。",
+        "error"
+      );
+    }
+  };
+
+  $("scanBtn").addEventListener("click", startScanner);
+  $("stopScanBtn").addEventListener("click", async () => {
+    await stopScanner();
+    setScanStatus("カメラを閉じました。");
+  });
+  $("retryScanBtn").addEventListener("click", startScanner);
+
+  $("barcodeFile").addEventListener("change", async e => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    if (typeof Html5Qrcode === "undefined") {
+      setScanStatus("バーコード読取ライブラリを読み込めませんでした。", "error");
+      return;
+    }
+
+    await stopScanner();
+    setScanStatus("画像からバーコードを読み取っています…", "loading");
+
+    try {
+      const fileScanner = new Html5Qrcode("reader");
+      $("scannerWrap").classList.add("show");
+      const decodedText = await fileScanner.scanFile(file, true);
+      try { await fileScanner.clear(); } catch (e) {}
+      $("scannerWrap").classList.remove("show");
+      await handleDecoded(decodedText);
+    } catch (err) {
+      $("scannerWrap").classList.remove("show");
+      setScanStatus("画像からバーコードを読み取れませんでした。バーコードを大きく撮影して再度試してください。", "error");
+    } finally {
+      e.target.value = "";
+    }
+  });
+
   $("lookupBtn").addEventListener("click", lookupProduct);
+
   $("clearProductBtn").addEventListener("click", () => {
     clearProduct();
     $("name").value = "";
@@ -349,6 +500,12 @@
       alert("検索語をコピーしました");
     } catch {
       prompt("この検索語をコピーしてください", q);
+    }
+  });
+
+  window.addEventListener("pagehide", () => {
+    if (scanner && scanning) {
+      scanner.stop().catch(() => {});
     }
   });
 
