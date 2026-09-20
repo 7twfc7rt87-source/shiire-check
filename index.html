@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#111827">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <title>仕入チェック Ver.4</title>
+  <title>仕入チェック Ver.5</title>
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <style>
     :root {
@@ -64,13 +64,31 @@
     .history-use{padding:9px 10px!important;font-size:12px!important;background:#e5e7eb;color:#111827}
     .history-empty{font-size:12px;color:var(--muted);padding:8px 0} .history-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
     .history-clear{width:auto!important;padding:7px 10px!important;font-size:11px!important;background:#f3f4f6;color:#6b7280;border:1px solid var(--line)!important}
-    @media(max-width:440px){.grid,.buttons,.metrics,.scanner-controls{grid-template-columns:1fr}.wide{grid-column:auto}.product img{width:90px;height:90px}.market-stats{grid-template-columns:1fr 1fr}}
+
+    .strategy-card{margin-top:12px;border:1px solid var(--line);border-radius:16px;padding:13px;background:#fff}
+    .strategy-title{font-size:13px;font-weight:800;margin-bottom:9px}
+    .strategy-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+    .strategy-item{border:1px solid var(--line);border-radius:13px;padding:10px;text-align:center;background:#f9fafb}
+    .strategy-item .label{font-size:10px;color:var(--muted);margin-bottom:4px}
+    .strategy-item .price{font-size:18px;font-weight:800;margin-bottom:7px}
+    .strategy-item .profit-label{font-size:10px;color:var(--muted)}
+    .strategy-item .profit{font-size:14px;font-weight:800;margin:2px 0 7px}
+    .strategy-item button{padding:8px 5px;font-size:11px}
+    .auto-judge{margin-top:12px;border-radius:16px;padding:15px;text-align:center;border:1px solid var(--line);background:#f9fafb}
+    .auto-judge .main{font-size:23px;font-weight:900}
+    .auto-judge .reason{font-size:12px;color:var(--muted);line-height:1.55;margin-top:5px}
+    .auto-judge.good .main{color:var(--good)}
+    .auto-judge.warn .main{color:var(--warn)}
+    .auto-judge.bad .main{color:var(--bad)}
+    .auto-judge.neutral .main{color:#374151}
+    .decision-note{font-size:10px;color:var(--muted);line-height:1.5;margin-top:8px}
+    @media(max-width:440px){.grid,.buttons,.metrics,.scanner-controls{grid-template-columns:1fr}.wide{grid-column:auto}.product img{width:90px;height:90px}.market-stats{grid-template-columns:1fr 1fr}.strategy-grid{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
 <main>
-  <h1>仕入チェック <span class="pill">Ver.4</span></h1>
-  <div class="sub">中央値・四分位点・外れ値除外に対応</div>
+  <h1>仕入チェック <span class="pill">Ver.5</span></h1>
+  <div class="sub">3段階売価＋自動仕入判定</div>
 
   <section class="card">
     <div class="buttons">
@@ -149,18 +167,35 @@
 
       <div id="marketQuality" class="market-note" style="font-size:12px;margin-top:10px;"></div>
 
-      <div class="market-actions">
-        <button id="useMedianBtn" class="primary smallbtn" type="button" disabled>中央値を想定売価にセット</button>
-        <button id="refreshMarketBtn" class="secondary smallbtn" type="button">相場を再取得</button>
+      <div class="strategy-card">
+        <div class="strategy-title">3段階の想定売価</div>
+        <div class="strategy-grid">
+          <div class="strategy-item">
+            <div class="label">安全売価 / 25%点</div>
+            <div id="safePrice" class="price">—</div>
+            <button id="useSafeBtn" class="secondary" type="button" disabled>想定売価に設定</button>
+          </div>
+          <div class="strategy-item">
+            <div class="label">標準売価 / 中央値</div>
+            <div id="standardPrice" class="price">—</div>
+            <button id="useMedianBtn" class="primary" type="button" disabled>想定売価に設定</button>
+          </div>
+          <div class="strategy-item">
+            <div class="label">強気売価 / 75%点</div>
+            <div id="aggressivePrice" class="price">—</div>
+            <button id="useAggressiveBtn" class="secondary" type="button" disabled>想定売価に設定</button>
+          </div>
+        </div>
       </div>
+
       <div class="market-actions">
+        <button id="refreshMarketBtn" class="secondary smallbtn" type="button">相場を再取得</button>
         <a id="marketSourceLink" class="button search smallbtn" href="#" target="_blank" rel="noopener">元ページを見る</a>
-        <div></div>
       </div>
 
       <div class="market-note">
-        外れ値除外はIQR（四分位範囲）方式。1円落札や極端な高額落札の影響を抑えます。
-        ただし、別モデル・ジャンク・まとめ売りなど「内容の違う商品」は統計処理だけでは完全に除外できません。
+        安全売価＝外れ値除外後の25%点、標準売価＝中央値、強気売価＝75%点。
+        別モデル・ジャンク・まとめ売りなど「内容の違う商品」は統計処理だけでは完全に除外できません。
       </div>
     </div>
 
@@ -187,6 +222,32 @@
   </section>
 
   <section class="card">
+    <h2>相場ベース自動仕入判定</h2>
+    <div class="strategy-grid">
+      <div class="strategy-item">
+        <div class="label">安全売価での利益</div>
+        <div id="safeProfit" class="profit">—</div>
+      </div>
+      <div class="strategy-item">
+        <div class="label">標準売価での利益</div>
+        <div id="standardProfit" class="profit">—</div>
+      </div>
+      <div class="strategy-item">
+        <div class="label">強気売価での利益</div>
+        <div id="aggressiveProfit" class="profit">—</div>
+      </div>
+    </div>
+    <div id="autoJudge" class="auto-judge neutral">
+      <div id="autoJudgeMain" class="main">相場データ待ち</div>
+      <div id="autoJudgeReason" class="reason">商品相場と仕入価格が揃うと自動判定します。</div>
+    </div>
+    <div class="decision-note">
+      判定は入力した「目標利益」を基準にします。安全売価でも目標利益達成＝強い仕入候補、中央値で達成＝仕入候補、中央値で黒字だが目標未達＝要検討、中央値で赤字＝見送り。
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>手動設定した想定売価での計算</h2>
     <div class="result"><div id="judge" class="judge">入力待ち</div><div id="judgeSub" class="sub">仕入価格と想定売価を入力してください</div></div>
     <div class="metrics">
       <div class="metric"><div class="k">想定利益</div><div id="profit" class="v">—</div></div>
@@ -201,7 +262,7 @@
 <script>
 (() => {
   const WORKER_URL="https://shiire-check-api.7twfc7rt87.workers.dev/", HISTORY_KEY="shiire_history_v3", $=id=>document.getElementById(id);
-  let scanner=null, scanning=false, scanLocked=false, terms={full:"",brandModel:"",model:""}, activeTermMode="full", currentFilteredMedian=null;
+  let scanner=null, scanning=false, scanLocked=false, terms={full:"",brandModel:"",model:""}, activeTermMode="full", currentFilteredMedian=null, currentSafePrice=null, currentAggressivePrice=null, currentMarketPartial=false, currentMarketCount=0;
   const term=()=>$("name").value.trim()||$("jan").value.trim(), norm=s=>String(s||"").replace(/[\s　]+/g," ").trim(), yen=n=>Number.isFinite(n)?Math.round(n).toLocaleString("ja-JP")+"円":"—";
 
   function cleanName(raw){let s=norm(raw);["送料無料","送料込み","即納","新品","未使用","正規品","公式","限定","ポイント","最安値","あすつく","翌日発送","在庫あり"].forEach(w=>s=s.replace(new RegExp(w,"gi")," "));return norm(s.replace(/[【】\[\]〈〉<>｜|]/g," "));}
@@ -212,14 +273,20 @@
   function refreshButtons(){$("termFullBtn").disabled=!terms.full;$("termBrandModelBtn").disabled=!terms.brandModel;$("termModelBtn").disabled=!terms.model;}
   async function setTermMode(mode,fetchMarket=true){if(!terms[mode])return;activeTermMode=mode;$("name").value=terms[mode];["termFullBtn","termBrandModelBtn","termModelBtn"].forEach(id=>$(id).classList.remove("active"));$({full:"termFullBtn",brandModel:"termBrandModelBtn",model:"termModelBtn"}[mode]).classList.add("active");$("termHint").textContent={full:"商品名ベース",brandModel:"ブランド＋型番",model:"型番のみ（同一商品比較向き）"}[mode];updateLinks();if(fetchMarket)await lookupMarket();}
   function clearMarket(){
-    ["marketFilteredMedian","marketQ1","marketQ3","marketFilteredCount","marketRawMedian","marketAvg","marketMin","marketMax"]
+    ["marketFilteredMedian","marketQ1","marketQ3","marketFilteredCount","marketRawMedian","marketAvg","marketMin","marketMax",
+     "safePrice","standardPrice","aggressivePrice"]
       .forEach(id=>$(id).textContent="—");
     $("marketQuery").textContent="—";
     $("marketSourceLink").href="#";
     $("marketQuality").textContent="";
-    $("useMedianBtn").disabled=true;
+    ["useSafeBtn","useMedianBtn","useAggressiveBtn"].forEach(id=>$(id).disabled=true);
     currentFilteredMedian=null;
+    currentSafePrice=null;
+    currentAggressivePrice=null;
+    currentMarketPartial=false;
+    currentMarketCount=0;
     setStatus("marketStatus","");
+    updateAutoDecision();
   }
 
   async function lookupMarket(){
@@ -228,8 +295,14 @@
 
     setStatus("marketStatus","個別落札価格を取得して中央値を計算中…","loading");
     $("marketQuery").textContent="検索語："+q;
-    $("useMedianBtn").disabled=true;
+    ["useSafeBtn","useMedianBtn","useAggressiveBtn"].forEach(id=>$(id).disabled=true);
+    currentSafePrice=null;
     currentFilteredMedian=null;
+    currentAggressivePrice=null;
+    currentMarketPartial=false;
+    currentMarketCount=0;
+    ["safePrice","standardPrice","aggressivePrice"].forEach(id=>$(id).textContent="—");
+    updateAutoDecision();
 
     try{
       const r=await fetch(WORKER_URL+"?market=yahoo&q="+encodeURIComponent(q),{cache:"no-store"});
@@ -259,8 +332,22 @@
       else notes.push("データ量または検索精度：低め");
       $("marketQuality").textContent=notes.join(" / ");
 
+      currentSafePrice=d.filteredQ1;
       currentFilteredMedian=d.filteredMedian;
-      $("useMedianBtn").disabled=!(Number.isFinite(Number(currentFilteredMedian)) && !d.partialMatch);
+      currentAggressivePrice=d.filteredQ3;
+      currentMarketPartial=!!d.partialMatch;
+      currentMarketCount=Number(d.filteredCount||0);
+
+      $("safePrice").textContent=d.filteredQ1!==null?yen(d.filteredQ1):"—";
+      $("standardPrice").textContent=d.filteredMedian!==null?yen(d.filteredMedian):"—";
+      $("aggressivePrice").textContent=d.filteredQ3!==null?yen(d.filteredQ3):"—";
+
+      const canUse=!d.partialMatch;
+      $("useSafeBtn").disabled=!(Number.isFinite(Number(currentSafePrice)) && canUse);
+      $("useMedianBtn").disabled=!(Number.isFinite(Number(currentFilteredMedian)) && canUse);
+      $("useAggressiveBtn").disabled=!(Number.isFinite(Number(currentAggressivePrice)) && canUse);
+
+      updateAutoDecision();
 
       if(d.partialMatch){
         setStatus("marketStatus","注意：完全一致が少なく、Yahoo!が検索範囲を広げています。中央値は参考扱いにしてください。","error");
@@ -270,6 +357,13 @@
         setStatus("marketStatus","外れ値を除外した中央値を取得しました。","ok");
       }
     }catch(e){
+      currentSafePrice=null;
+      currentFilteredMedian=null;
+      currentAggressivePrice=null;
+      currentMarketCount=0;
+      ["useSafeBtn","useMedianBtn","useAggressiveBtn"].forEach(id=>$(id).disabled=true);
+      ["safePrice","standardPrice","aggressivePrice"].forEach(id=>$(id).textContent="—");
+      updateAutoDecision();
       setStatus("marketStatus","相場取得エラー："+e.message,"error");
     }
   }
@@ -281,15 +375,95 @@
   function addHistory(item){let h=getHistory().filter(x=>x.jan!==item.jan);h.unshift(item);localStorage.setItem(HISTORY_KEY,JSON.stringify(h.slice(0,10)));renderHistory();}
   function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
   function renderHistory(){const h=getHistory(),box=$("historyList");if(!h.length){box.innerHTML='<div class="history-empty">まだ履歴はありません。</div>';return}box.innerHTML=h.map((x,i)=>`<div class="history-item">${x.image?`<img src="${esc(x.image)}">`:'<div class="history-placeholder">NO IMG</div>'}<div><div class="history-name">${esc(x.name)}</div><div class="history-jan">JAN: ${esc(x.jan)}</div></div><button class="history-use" data-i="${i}">呼出</button></div>`).join("");box.querySelectorAll("[data-i]").forEach(b=>b.onclick=async()=>{const x=getHistory()[Number(b.dataset.i)];$("jan").value=x.jan;await lookupProduct();window.scrollTo({top:0,behavior:"smooth"});});}
-  function calc(){const n=id=>Number($(id).value)||0,b=n("buy"),s=n("sell"),sh=n("shipping"),fp=n("fee"),t=n("target");if(s<=0)return;const fa=s*fp/100,p=s-fa-sh-b,m=p/s*100,mb=s-fa-sh-t,r=mb-b;$("profit").textContent=yen(p);$("margin").textContent=m.toFixed(1)+"%";$("feeAmount").textContent=yen(fa);$("maxBuy").textContent=yen(mb);$("room").textContent=(r>=0?"+":"")+yen(r);$("judge").className="judge";if(p>=t){$("judge").textContent="🟢 仕入候補";$("judge").classList.add("good");$("judgeSub").textContent="目標利益をクリア"}else if(p>=0){$("judge").textContent="🟠 要検討";$("judge").classList.add("warn");$("judgeSub").textContent="黒字だが目標未達"}else{$("judge").textContent="🔴 見送り";$("judge").classList.add("bad");$("judgeSub").textContent="想定条件では赤字"}}
+  function profitAt(sellPrice){
+    const buy=Number($("buy").value)||0;
+    const shipping=Number($("shipping").value)||0;
+    const feePct=Number($("fee").value)||0;
+    if(!Number.isFinite(Number(sellPrice)))return null;
+    const sell=Number(sellPrice);
+    return sell-(sell*feePct/100)-shipping-buy;
+  }
+
+  function updateAutoDecision(){
+    const buyRaw=$("buy").value;
+    const target=Number($("target").value)||0;
+
+    const safeP=profitAt(currentSafePrice);
+    const standardP=profitAt(currentFilteredMedian);
+    const aggressiveP=profitAt(currentAggressivePrice);
+
+    $("safeProfit").textContent=safeP!==null?yen(safeP):"—";
+    $("standardProfit").textContent=standardP!==null?yen(standardP):"—";
+    $("aggressiveProfit").textContent=aggressiveP!==null?yen(aggressiveP):"—";
+
+    const box=$("autoJudge");
+    box.className="auto-judge neutral";
+
+    if(currentMarketPartial){
+      $("autoJudgeMain").textContent="⚠ 自動判定保留";
+      $("autoJudgeReason").textContent="Yahoo!が部分一致検索へ広げているため、別商品の混入リスクがあります。検索語を調整してください。";
+      return;
+    }
+
+    if(!Number.isFinite(Number(currentFilteredMedian))){
+      $("autoJudgeMain").textContent="相場データ待ち";
+      $("autoJudgeReason").textContent="商品相場を取得すると自動判定します。";
+      return;
+    }
+
+    if(buyRaw===""){
+      $("autoJudgeMain").textContent="仕入価格を入力";
+      $("autoJudgeReason").textContent="仕入価格・送料・販売手数料・目標利益から3段階で判定します。";
+      return;
+    }
+
+    const dataWarning=currentMarketCount<5 ? " ※有効件数が少ないため参考判定です。" : "";
+
+    if(safeP!==null && safeP>=target){
+      box.classList.add("good");
+      $("autoJudgeMain").textContent="🟢 強い仕入候補";
+      $("autoJudgeReason").textContent="安全売価（25%点）でも目標利益 "+yen(target)+" を達成します。"+dataWarning;
+    }else if(standardP!==null && standardP>=target){
+      box.classList.add("warn");
+      $("autoJudgeMain").textContent="🟡 仕入候補";
+      $("autoJudgeReason").textContent="標準売価（中央値）なら目標利益を達成しますが、安全売価では届きません。"+dataWarning;
+    }else if(standardP!==null && standardP>=0){
+      box.classList.add("warn");
+      $("autoJudgeMain").textContent="🟠 要検討";
+      $("autoJudgeReason").textContent="中央値では黒字ですが、目標利益 "+yen(target)+" には届きません。"+dataWarning;
+    }else{
+      box.classList.add("bad");
+      $("autoJudgeMain").textContent="🔴 見送り";
+      $("autoJudgeReason").textContent="標準売価（中央値）でも赤字になる想定です。"+dataWarning;
+    }
+  }
+
+  function calc(){
+    const n=id=>Number($(id).value)||0,b=n("buy"),s=n("sell"),sh=n("shipping"),fp=n("fee"),t=n("target");
+    updateAutoDecision();
+    if(s<=0){
+      $("profit").textContent="—";$("margin").textContent="—";$("feeAmount").textContent="—";$("maxBuy").textContent="—";$("room").textContent="—";
+      $("judge").textContent="入力待ち";$("judge").className="judge";$("judgeSub").textContent="想定売価を入力してください";
+      return;
+    }
+    const fa=s*fp/100,p=s-fa-sh-b,m=p/s*100,mb=s-fa-sh-t,r=mb-b;
+    $("profit").textContent=yen(p);$("margin").textContent=m.toFixed(1)+"%";$("feeAmount").textContent=yen(fa);$("maxBuy").textContent=yen(mb);$("room").textContent=(r>=0?"+":"")+yen(r);
+    $("judge").className="judge";
+    if(p>=t){$("judge").textContent="🟢 仕入候補";$("judge").classList.add("good");$("judgeSub").textContent="目標利益をクリア"}
+    else if(p>=0){$("judge").textContent="🟠 要検討";$("judge").classList.add("warn");$("judgeSub").textContent="黒字だが目標未達"}
+    else{$("judge").textContent="🔴 見送り";$("judge").classList.add("bad");$("judgeSub").textContent="想定条件では赤字"}
+  }
+
   $("scanBtn").onclick=startScanner;$("stopScanBtn").onclick=stopScanner;$("retryScanBtn").onclick=startScanner;$("lookupBtn").onclick=lookupProduct;$("refreshMarketBtn").onclick=lookupMarket;
-  $("useMedianBtn").onclick=()=>{if(Number.isFinite(Number(currentFilteredMedian))){$("sell").value=Math.round(Number(currentFilteredMedian));calc();window.scrollTo({top:document.body.scrollHeight,behavior:"smooth"});}};
+  $("useSafeBtn").onclick=()=>{if(Number.isFinite(Number(currentSafePrice))){$("sell").value=Math.round(Number(currentSafePrice));calc();}};
+  $("useMedianBtn").onclick=()=>{if(Number.isFinite(Number(currentFilteredMedian))){$("sell").value=Math.round(Number(currentFilteredMedian));calc();}};
+  $("useAggressiveBtn").onclick=()=>{if(Number.isFinite(Number(currentAggressivePrice))){$("sell").value=Math.round(Number(currentAggressivePrice));calc();}};
   $("termFullBtn").onclick=()=>setTermMode("full");$("termBrandModelBtn").onclick=()=>setTermMode("brandModel");$("termModelBtn").onclick=()=>setTermMode("model");
   $("clearHistoryBtn").onclick=()=>{if(confirm("履歴を削除しますか？")){localStorage.removeItem(HISTORY_KEY);renderHistory();}};
   $("clearProductBtn").onclick=()=>{terms={full:"",brandModel:"",model:""};$("name").value="";$("productBox").classList.remove("show");refreshButtons();clearMarket();updateLinks();};
   $("calcBtn").onclick=calc;["buy","sell","shipping","fee","target"].forEach(id=>$(id).oninput=calc);$("name").oninput=updateLinks;
   $("barcodeFile").onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{const fs=new Html5Qrcode("reader");$("scannerWrap").classList.add("show");const txt=await fs.scanFile(f,true);try{await fs.clear()}catch{}$("scannerWrap").classList.remove("show");await decoded(txt);}catch{setStatus("scanStatus","画像から読み取れませんでした","error")}e.target.value="";};
-  refreshButtons();renderHistory();updateLinks();
+  refreshButtons();renderHistory();updateLinks();updateAutoDecision();
 })();
 </script>
 </body>
